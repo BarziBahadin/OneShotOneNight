@@ -16,14 +16,18 @@ export function apiBaseURL() {
 }
 
 export function guestURL(slug: string, accessToken: string) {
-  const base = publicWebURL();
+  const base = publicWebBaseURL();
   return `${base}/guest/${slug}?t=${encodeURIComponent(accessToken)}`;
 }
 
-export function publicWebURL(url?: string) {
+function publicWebBaseURL(): string {
   const configured = configuredPublicWebURL?.replace(/\/$/, "");
   const browserOrigin = typeof window !== "undefined" ? window.location.origin : "";
-  const base = configured || browserOrigin || "http://localhost:3000";
+  return configured || browserOrigin || "http://localhost:3000";
+}
+
+export function publicWebURL(url?: string): string {
+  const base = publicWebBaseURL();
   if (!url) return base;
 
   try {
@@ -50,6 +54,7 @@ export type EventRecord = {
   prefer_camera_capture: boolean;
   allow_immediate_gallery: boolean;
   auto_approve_photos: boolean;
+  offline_upload_grace_hours: number;
 };
 
 export type GuestRecord = {
@@ -118,11 +123,20 @@ export function isUnauthorizedError(error: unknown) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const method = init?.method ?? "GET";
+  const csrfToken = adminMutationNeedsCSRF(path, method) ? readCookie("admin_csrf") : "";
+  if (csrfToken) {
+    headers.set("X-CSRF-Token", csrfToken);
+  }
   try {
     res = await fetch(`${apiBaseURL()}${path}`, {
       ...init,
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) }
+      headers
     });
   } catch {
     const target = apiBaseURL() || "the local Vite server";
@@ -137,6 +151,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw apiError;
   }
   return (await res.json()) as T;
+}
+
+function adminMutationNeedsCSRF(path: string, method: string) {
+  const normalized = method.toUpperCase();
+  return path.startsWith("/api/v1/admin/") && !["GET", "HEAD", "OPTIONS"].includes(normalized);
+}
+
+function readCookie(name: string) {
+  if (typeof document === "undefined") return "";
+  const prefix = `${name}=`;
+  return document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix))
+    ?.slice(prefix.length) ?? "";
 }
 
 export function createEvent(payload: unknown) {
@@ -196,6 +225,12 @@ export function adminUpdateEvent(eventID: string, payload: unknown) {
   });
 }
 
+export function adminResetEventTokens(eventID: string) {
+  return request<{ event: EventRecord; guest_url: string; access_token: string; organizer_token: string }>(`/api/v1/admin/events/${eventID}/tokens/reset`, {
+    method: "POST"
+  });
+}
+
 export function adminSetEventStatus(eventID: string, status: "open" | "locked" | "deleted") {
   const path = status === "open" ? "open" : status === "locked" ? "lock" : "";
   if (path) {
@@ -225,18 +260,42 @@ export function joinGuest(slug: string, accessToken: string, displayName: string
   });
 }
 
-export function presignUpload(slug: string, accessToken: string, file: File) {
-  return request<{ photo_id: string; object_key: string; upload_url: string; upload_token: string; remaining_shots: number }>(`/api/v1/guest/${slug}/uploads/presign`, {
-    method: "POST",
-    headers: { "Idempotency-Key": randomID() },
-    body: JSON.stringify({ access_token: accessToken, file_name: file.name, content_type: file.type, size_bytes: file.size })
-  });
-}
+export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string) {
+  const contentType = file.type || "image/jpeg";
+  const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_token: string; remaining_shots: number }>(
+    `/api/v1/guest/${slug}/uploads/presign`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify({
+        access_token: accessToken,
+        file_name: file.name,
+        content_type: contentType,
+        size_bytes: file.size
+      })
+    }
+  );
 
-export function registerPhoto(slug: string, accessToken: string, payload: Record<string, unknown>) {
+  const uploaded = await fetch(presign.upload_url, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: file
+  });
+  if (!uploaded.ok) {
+    throw new APIError("Upload failed", uploaded.status, "upload_failed");
+  }
+
   return request<{ photo: PhotoRecord; remaining_shots: number }>(`/api/v1/guest/${slug}/photos`, {
     method: "POST",
-    body: JSON.stringify({ access_token: accessToken, ...payload })
+    body: JSON.stringify({
+      access_token: accessToken,
+      photo_id: presign.photo_id,
+      object_key: presign.object_key,
+      content_type: contentType,
+      size_bytes: file.size,
+      upload_token: presign.upload_token,
+      message
+    })
   });
 }
 
@@ -244,33 +303,4 @@ export function guestGallery(slug: string, accessToken: string) {
   return request<{ event: EventRecord; photos: PhotoRecord[] }>(`/api/v1/gallery/${slug}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-}
-
-export function hostPhotos(slug: string, organizerToken: string) {
-  return request<{ event: EventRecord; photos: PhotoRecord[] }>(`/api/v1/host/events/${slug}/photos`, {
-    headers: { Authorization: `Bearer ${organizerToken}` }
-  });
-}
-
-export function moderatePhoto(eventID: string, photoID: string, organizerToken: string, status: PhotoRecord["status"]) {
-  return request<{ status: string }>(`/api/v1/host/events/${eventID}/photos/${photoID}`, {
-    method: "PATCH",
-    headers: { Authorization: `Bearer ${organizerToken}` },
-    body: JSON.stringify({ status })
-  });
-}
-
-function randomID() {
-  if (globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
-  }
-  if (globalThis.crypto?.getRandomValues) {
-    const bytes = new Uint8Array(16);
-    globalThis.crypto.getRandomValues(bytes);
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

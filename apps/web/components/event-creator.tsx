@@ -25,6 +25,7 @@ export function EventCreator() {
         mode: form.get("mode"),
         max_guests: Number(form.get("max_guests")),
         max_photos_per_guest: Number(form.get("max_photos_per_guest")),
+        offline_upload_grace_hours: Number(form.get("offline_upload_grace_hours")),
         allow_gallery_uploads: form.get("allow_gallery_uploads") === "on",
         prefer_camera_capture: form.get("prefer_camera_capture") === "on",
         allow_immediate_gallery: form.get("allow_immediate_gallery") === "on"
@@ -77,6 +78,7 @@ export function EventCreator() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Guest limit" name="max_guests" type="number" defaultValue="250" min="1" />
             <Field label="Shots per guest" name="max_photos_per_guest" type="number" defaultValue="12" min="1" />
+            <Field label="Offline retry hours" name="offline_upload_grace_hours" type="number" defaultValue="24" min="1" max="168" />
           </div>
           <label className="flex items-center gap-3 text-sm font-semibold"><input name="allow_gallery_uploads" type="checkbox" defaultChecked suppressHydrationWarning /> Allow gallery uploads</label>
           <label className="flex items-center gap-3 text-sm font-semibold"><input name="prefer_camera_capture" type="checkbox" defaultChecked suppressHydrationWarning /> Prefer camera capture</label>
@@ -93,12 +95,11 @@ export function EventCreator() {
             <div className="grid gap-4">
               <img src={qr} alt="Guest QR code" className="mx-auto h-72 w-72 rounded-md border border-ink/10 bg-white p-2" />
               <CopyBox label="Guest URL" value={guestURL(created.event.slug, created.access_token)} />
-              <CopyBox label="Organizer token" value={created.organizer_token} />
               <a className="btn-ghost px-4 py-3 text-center" href={guestURL(created.event.slug, created.access_token)} target="_blank" rel="noreferrer">
                 Open guest page
               </a>
-              <a className="btn-dark px-4 py-3 text-center" href={`/host/events/${created.event.slug}?token=${created.organizer_token}`}>
-                Open moderation
+              <a className="btn-dark px-4 py-3 text-center" href={`/admin/events/${created.event.id}`}>
+                Open admin moderation
               </a>
             </div>
           ) : (

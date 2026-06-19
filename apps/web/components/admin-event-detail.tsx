@@ -2,12 +2,13 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { Check, Copy, Download, EyeOff, ExternalLink, MoreVertical, Play, Settings, Trash2, UserX } from "lucide-react";
+import { Check, Copy, Download, EyeOff, MoreVertical, Play, Settings, Share2, Trash2, UserX } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import {
   adminEvent,
   adminModeratePhoto,
   adminPhotoArchiveURL,
+  adminResetEventTokens,
   adminSetEventStatus,
   adminUpdateEvent,
   adminUpdateGuest,
@@ -25,6 +26,7 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
   const [section, setSection] = useState<Section>("event");
   const [qr, setQr] = useState("");
   const [copied, setCopied] = useState(false);
+  const [toast, setToast] = useState("");
 
   async function load() {
     try {
@@ -72,6 +74,15 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
     await load();
   }
 
+  async function resetLinks() {
+    if (!window.confirm("Reset this event's guest QR and host token? Old links will stop working.")) return;
+    const out = await adminResetEventTokens(eventID);
+    setDetail({ ...detail!, event: out.event, guest_url: out.guest_url });
+    setCopied(false);
+    setToast("Guest QR and host token reset");
+    window.setTimeout(() => setToast(""), 2200);
+  }
+
   if (!detail) {
     return <AdminShell><p className="surface px-4 py-3 text-moss">{status}</p></AdminShell>;
   }
@@ -98,6 +109,7 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
             ) : (
               <Action onClick={() => updateStatus("open")}>Resume guest access</Action>
             )}
+            <Action onClick={resetLinks}>Reset QR and tokens</Action>
             <Action danger onClick={() => updateStatus("deleted")}><Trash2 className="h-4 w-4" /> Delete event</Action>
           </div>
         </details>
@@ -116,21 +128,26 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
           copyText(guestLink);
           setCopied(true);
           window.setTimeout(() => setCopied(false), 1500);
+        }} onToast={(message) => {
+          setToast(message);
+          window.setTimeout(() => setToast(""), 1800);
         }} onChange={load} />
       ) : null}
       {section === "guests" ? <Guests detail={detail} onChange={load} /> : null}
       {section === "settings" ? <SettingsPanel event={detail.event} onChange={load} /> : null}
       {status ? <p className="mt-4 surface px-4 py-3 text-moss">{status}</p> : null}
+      {toast ? <button type="button" onClick={() => setToast("")} className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-sm rounded-full bg-white px-4 py-3 text-sm font-bold text-black shadow-2xl">{toast}</button> : null}
     </AdminShell>
   );
 }
 
-function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onChange }: {
+function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onChange }: {
   detail: AdminEventDetail;
   guestLink: string;
   qr: string;
   copied: boolean;
   onCopied: () => void;
+  onToast: (message: string) => void;
   onChange: () => Promise<void>;
 }) {
   const photos = useMemo(
@@ -143,22 +160,56 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onChange }: {
     await onChange();
   }
 
+  async function shareGuestLink() {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: detail.event.name, url: guestLink });
+        onToast("Share sheet opened.");
+      } else {
+        await copyText(guestLink);
+        onToast("Guest link copied.");
+      }
+    } catch {
+      onToast("Could not share this guest link.");
+    }
+  }
+
+  function saveQR() {
+    if (!qr) return;
+    const anchor = document.createElement("a");
+    anchor.href = qr;
+    anchor.download = `${detail.event.slug}-qr.png`;
+    anchor.click();
+    onToast("QR image saved.");
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:items-start">
-      <aside className="relative overflow-hidden rounded-[2rem] bg-[#eee7dc] p-6 text-[#171411] shadow-[0_30px_80px_rgba(0,0,0,0.28)] lg:sticky lg:top-5">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-amber/25 blur-3xl" />
-        <div>
-          <p className="text-[0.68rem] font-bold uppercase tracking-[0.24em] text-[#8b6b32]">Guest invitation</p>
-          <h3 className="mt-3 text-3xl font-semibold leading-tight">Scan. Shoot.<br />Remember.</h3>
+      <aside className="scene-glass relative overflow-hidden rounded-[2rem] p-6 text-white lg:sticky lg:top-5">
+        <img src="/pics/golden-event.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-24" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/90" />
+        <div className="relative">
+          <p className="text-[0.68rem] font-bold uppercase text-white/52">Share QR code</p>
+          <h3 className="mt-3 text-4xl font-semibold leading-[0.92]">Scan. Shoot.<br />Remember.</h3>
+          <p className="mt-3 text-sm leading-6 text-white/58">Anyone can join the album by scanning this code. No app download is required.</p>
         </div>
-        {qr ? <img src={qr} alt="Guest QR code" className="relative mx-auto my-6 aspect-square w-full max-w-64 rounded-2xl bg-white p-3 shadow-xl" /> : null}
-        <button className="btn-primary px-4 py-3" onClick={onCopied}>
-          <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy guest link"}
-        </button>
-        <a className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/15 px-4 py-3 text-sm font-semibold hover:bg-black/5" href={guestLink} target="_blank" rel="noreferrer">
-          <ExternalLink className="h-4 w-4" /> Open guest view
-        </a>
-        <p className="break-all text-[0.65rem] text-black/45">{guestLink}</p>
+        <div>
+        </div>
+        {qr ? <img src={qr} alt="Guest QR code" className="relative mx-auto my-6 aspect-square w-full max-w-64 rounded-[1.5rem] bg-white p-3 shadow-xl" /> : null}
+        <div className="relative grid grid-cols-2 gap-2">
+          <button className="rounded-full bg-white px-4 py-3 text-sm font-bold text-black" onClick={shareGuestLink}>
+            <Share2 className="mr-1 inline h-4 w-4" /> Share
+          </button>
+          <button className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white" onClick={saveQR}>
+            <Download className="mr-1 inline h-4 w-4" /> Save QR
+          </button>
+        </div>
+        <div className="relative mt-3 grid gap-2">
+          <button className="btn-ghost px-4 py-3" onClick={onCopied}>
+            <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy guest link"}
+          </button>
+        </div>
+        <p className="relative mt-4 break-all text-[0.65rem] text-white/40">{guestLink}</p>
       </aside>
 
       <div className="grid gap-5">
@@ -251,6 +302,7 @@ function SettingsPanel({ event, onChange }: { event: EventRecord; onChange: () =
       reveal_at: new Date(String(form.get("reveal_at"))).toISOString(),
       max_guests: Number(form.get("max_guests")),
       max_photos_per_guest: Number(form.get("max_photos_per_guest")),
+      offline_upload_grace_hours: Number(form.get("offline_upload_grace_hours")),
       allow_gallery_uploads: form.get("allow_gallery_uploads") === "on",
       prefer_camera_capture: form.get("prefer_camera_capture") === "on",
       auto_approve_photos: form.get("auto_approve_photos") === "on"
@@ -271,6 +323,7 @@ function SettingsPanel({ event, onChange }: { event: EventRecord; onChange: () =
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Guest limit" name="max_guests" type="number" min="1" defaultValue={event.max_guests} />
         <Field label="Photos per guest" name="max_photos_per_guest" type="number" min="1" defaultValue={event.max_photos_per_guest} />
+        <Field label="Offline retry hours" name="offline_upload_grace_hours" type="number" min="1" max="168" defaultValue={event.offline_upload_grace_hours || 24} />
       </div>
       <label className="flex items-center gap-3 text-sm font-semibold"><input name="allow_gallery_uploads" type="checkbox" defaultChecked={event.allow_gallery_uploads} /> Allow gallery uploads</label>
       <label className="flex items-center gap-3 text-sm font-semibold"><input name="prefer_camera_capture" type="checkbox" defaultChecked={event.prefer_camera_capture} /> Prefer camera capture</label>

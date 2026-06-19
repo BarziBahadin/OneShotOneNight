@@ -9,7 +9,6 @@ import { AdminLogin } from "@/components/admin-login";
 import { EventCreator } from "@/components/event-creator";
 import { GalleryView } from "@/components/gallery-view";
 import { GuestCamera } from "@/components/guest-camera";
-import { HostModeration } from "@/components/host-moderation";
 
 export function AppRoutes() {
   return (
@@ -25,7 +24,6 @@ export function AppRoutes() {
       <Route path="/guest/:slug" element={<GuestRoute />} />
       <Route path="/gallery/:slug" element={<GalleryRoute />} />
       <Route path="/host/events/new" element={<EventCreator />} />
-      <Route path="/host/events/:id" element={<HostEventRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -46,10 +44,4 @@ function GalleryRoute() {
   const { slug = "" } = useParams();
   const [search] = useSearchParams();
   return <GalleryView slug={slug} accessToken={search.get("t") ?? ""} />;
-}
-
-function HostEventRoute() {
-  const { id = "" } = useParams();
-  const [search] = useSearchParams();
-  return <HostModeration slug={id} organizerToken={search.get("token") ?? ""} />;
 }

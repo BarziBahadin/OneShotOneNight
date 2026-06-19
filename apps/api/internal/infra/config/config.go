@@ -12,10 +12,7 @@ type Config struct {
 	HTTPAddr           string
 	PublicWebURL       string
 	CORSOrigins        []string
-	AppleTeamID        string
-	IOSAppBundleID     string
-	IOSAppClipBundleID string
-	AppClipPathPrefix  string
+	TrustedProxies     []string
 	DataBackend        string
 	RedisAddr          string
 	RedisPassword      string
@@ -43,10 +40,7 @@ func Load() Config {
 		HTTPAddr:           get("HTTP_ADDR", ":8080"),
 		PublicWebURL:       get("PUBLIC_WEB_URL", "http://localhost:3000"),
 		CORSOrigins:        split(get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")),
-		AppleTeamID:        get("APPLE_TEAM_ID", ""),
-		IOSAppBundleID:     get("IOS_APP_BUNDLE_ID", ""),
-		IOSAppClipBundleID: get("IOS_APP_CLIP_BUNDLE_ID", ""),
-		AppClipPathPrefix:  get("APP_CLIP_PATH_PREFIX", "/guest/*"),
+		TrustedProxies:     split(get("TRUSTED_PROXIES", "")),
 		DataBackend:        get("DATA_BACKEND", "redis"),
 		RedisAddr:          get("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:      get("REDIS_PASSWORD", ""),

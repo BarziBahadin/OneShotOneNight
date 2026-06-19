@@ -1,0 +1,19 @@
+{
+  "ownerId": "YOUR_OWNER_ID",
+  "@version": 3,
+  "name": "test-out-json",
+  "modelId": "YOUR_MODEL_ID",
+  "published": "draft",
+  "query": [
+    {
+      "@type": "@builder.io/core:Query",
+      "property": "urlPath",
+      "operator": "is",
+      "value": "/test-out-json"
+    }
+  ],
+  "data": {
+    "title": "Example title",
+    "url": "https://example.com"
+  }
+}

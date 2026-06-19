@@ -1,6 +1,6 @@
 module oneshotonenight/api
 
-go 1.24
+go 1.25.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.42.0
@@ -11,6 +11,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/redis/go-redis/v9 v9.6.1
+	golang.org/x/crypto v0.53.0
 )
 
 require (

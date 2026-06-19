@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,7 +35,7 @@ func main() {
 			Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
 			AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, UsePathStyle: cfg.S3UsePathStyle,
 		},
-		Pepper: cfg.TokenPepper, WebURL: cfg.PublicWebURL, MaxBytes: cfg.MaxUploadBytes,
+		Pepper: cfg.TokenPepper, WebURL: cfg.PublicWebURL, GuestURLBase: cfg.PublicWebURL, MaxBytes: cfg.MaxUploadBytes,
 		DisableGuestTokens: cfg.DisableGuestTokens, AdminPassword: cfg.AdminPassword, AdminPasswordHash: cfg.AdminPasswordHash, AdminSessionTTL: cfg.AdminSessionTTL,
 	})
 	server := &http.Server{
@@ -67,11 +69,33 @@ func validateProductionConfig(cfg config.Config) error {
 	if cfg.TokenPepper == "" || cfg.TokenPepper == "dev-pepper-change-me" || cfg.TokenPepper == "change-me-to-a-long-random-secret" {
 		return fmt.Errorf("TOKEN_PEPPER must be a strong production secret")
 	}
+	if cfg.DataBackend != "redis" {
+		return fmt.Errorf("DATA_BACKEND=%s is not implemented by the runtime", cfg.DataBackend)
+	}
 	if cfg.AdminPasswordHash == "" {
 		return fmt.Errorf("ADMIN_PASSWORD_HASH must be set in production")
+	}
+	if !strings.HasPrefix(cfg.AdminPasswordHash, "$2") {
+		return fmt.Errorf("ADMIN_PASSWORD_HASH must be a bcrypt hash in production")
 	}
 	if !cfg.CookieSecure {
 		return fmt.Errorf("COOKIE_SECURE must be true in production")
 	}
+	if !isHTTPSURL(cfg.PublicWebURL) {
+		return fmt.Errorf("PUBLIC_WEB_URL must be an HTTPS URL in production")
+	}
+	for _, origin := range cfg.CORSOrigins {
+		if !isHTTPSURL(origin) {
+			return fmt.Errorf("CORS_ORIGINS must contain only HTTPS origins in production")
+		}
+	}
+	if cfg.S3AccessKey == "" || cfg.S3SecretKey == "" || cfg.S3AccessKey == "minioadmin" || cfg.S3SecretKey == "minioadmin" {
+		return fmt.Errorf("S3 credentials must be set to non-default production values")
+	}
 	return nil
+}
+
+func isHTTPSURL(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
 }

@@ -2,14 +2,15 @@ package application
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"path"
 	"regexp"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/oklog/ulid/v2"
+	"golang.org/x/crypto/bcrypt"
 
 	"oneshotonenight/api/internal/domain"
 	"oneshotonenight/api/internal/ports"
@@ -34,6 +36,7 @@ type Service struct {
 	storage            ports.ObjectStorage
 	pepper             string
 	webURL             string
+	guestURLBase       string
 	maxBytes           int64
 	disableGuestTokens bool
 	adminPassword      string
@@ -51,6 +54,7 @@ type NewServiceInput struct {
 	Storage            ports.ObjectStorage
 	Pepper             string
 	WebURL             string
+	GuestURLBase       string
 	MaxBytes           int64
 	DisableGuestTokens bool
 	AdminPassword      string
@@ -64,6 +68,7 @@ func NewService(in NewServiceInput) *Service {
 		adminSessions: in.AdminSessions, storage: in.Storage, pepper: in.Pepper, webURL: strings.TrimRight(in.WebURL, "/"), maxBytes: in.MaxBytes,
 		disableGuestTokens: in.DisableGuestTokens,
 		adminPassword:      in.AdminPassword, adminPasswordHash: in.AdminPasswordHash, adminSessionTTL: in.AdminSessionTTL,
+		guestURLBase: strings.TrimRight(firstNonEmpty(in.GuestURLBase, in.WebURL), "/"),
 	}
 }
 
@@ -94,37 +99,46 @@ type AdminEventDetail struct {
 }
 
 type UpdateEventInput struct {
-	Name                  *string             `json:"name"`
-	Description           *string             `json:"description"`
-	Mode                  *domain.EventMode   `json:"mode"`
-	Status                *domain.EventStatus `json:"status"`
-	StartsAt              *time.Time          `json:"starts_at"`
-	EndsAt                *time.Time          `json:"ends_at"`
-	RevealAt              *time.Time          `json:"reveal_at"`
-	MaxGuests             *int                `json:"max_guests"`
-	MaxPhotosPerGuest     *int                `json:"max_photos_per_guest"`
-	AllowGalleryUploads   *bool               `json:"allow_gallery_uploads"`
-	PreferCameraCapture   *bool               `json:"prefer_camera_capture"`
-	AllowImmediateGallery *bool               `json:"allow_immediate_gallery"`
-	AutoApprovePhotos     *bool               `json:"auto_approve_photos"`
+	Name                    *string             `json:"name"`
+	Description             *string             `json:"description"`
+	Mode                    *domain.EventMode   `json:"mode"`
+	Status                  *domain.EventStatus `json:"status"`
+	StartsAt                *time.Time          `json:"starts_at"`
+	EndsAt                  *time.Time          `json:"ends_at"`
+	RevealAt                *time.Time          `json:"reveal_at"`
+	MaxGuests               *int                `json:"max_guests"`
+	MaxPhotosPerGuest       *int                `json:"max_photos_per_guest"`
+	AllowGalleryUploads     *bool               `json:"allow_gallery_uploads"`
+	PreferCameraCapture     *bool               `json:"prefer_camera_capture"`
+	AllowImmediateGallery   *bool               `json:"allow_immediate_gallery"`
+	AutoApprovePhotos       *bool               `json:"auto_approve_photos"`
+	OfflineUploadGraceHours *int                `json:"offline_upload_grace_hours"`
 }
 
 type CreateEventInput struct {
-	Name                  string           `json:"name"`
-	Description           string           `json:"description"`
-	Mode                  domain.EventMode `json:"mode"`
-	StartsAt              time.Time        `json:"starts_at"`
-	EndsAt                time.Time        `json:"ends_at"`
-	RevealAt              time.Time        `json:"reveal_at"`
-	MaxGuests             int              `json:"max_guests"`
-	MaxPhotosPerGuest     int              `json:"max_photos_per_guest"`
-	AllowGalleryUploads   *bool            `json:"allow_gallery_uploads"`
-	PreferCameraCapture   *bool            `json:"prefer_camera_capture"`
-	AllowImmediateGallery bool             `json:"allow_immediate_gallery"`
-	AutoApprovePhotos     *bool            `json:"auto_approve_photos"`
+	Name                    string           `json:"name"`
+	Description             string           `json:"description"`
+	Mode                    domain.EventMode `json:"mode"`
+	StartsAt                time.Time        `json:"starts_at"`
+	EndsAt                  time.Time        `json:"ends_at"`
+	RevealAt                time.Time        `json:"reveal_at"`
+	MaxGuests               int              `json:"max_guests"`
+	MaxPhotosPerGuest       int              `json:"max_photos_per_guest"`
+	AllowGalleryUploads     *bool            `json:"allow_gallery_uploads"`
+	PreferCameraCapture     *bool            `json:"prefer_camera_capture"`
+	AllowImmediateGallery   bool             `json:"allow_immediate_gallery"`
+	AutoApprovePhotos       *bool            `json:"auto_approve_photos"`
+	OfflineUploadGraceHours int              `json:"offline_upload_grace_hours"`
 }
 
 type CreateEventOutput struct {
+	Event          *domain.Event `json:"event"`
+	GuestURL       string        `json:"guest_url"`
+	AccessToken    string        `json:"access_token"`
+	OrganizerToken string        `json:"organizer_token"`
+}
+
+type RotateEventTokensOutput struct {
 	Event          *domain.Event `json:"event"`
 	GuestURL       string        `json:"guest_url"`
 	AccessToken    string        `json:"access_token"`
@@ -143,6 +157,9 @@ func (s *Service) CreateEvent(ctx context.Context, in CreateEventInput) (*Create
 	}
 	if in.Mode == "" {
 		in.Mode = domain.ModeDelayedReveal
+	}
+	if in.OfflineUploadGraceHours <= 0 {
+		in.OfflineUploadGraceHours = 24
 	}
 	now := time.Now().UTC()
 	if in.StartsAt.IsZero() {
@@ -182,7 +199,7 @@ func (s *Service) CreateEvent(ctx context.Context, in CreateEventInput) (*Create
 	}
 	id := ulid.Make().String()
 	slug := slugify(in.Name) + "-" + strings.ToLower(id[len(id)-6:])
-	guestURL := fmt.Sprintf("%s/guest/%s?t=%s", s.webURL, slug, accessToken)
+	guestURL := fmt.Sprintf("%s/guest/%s?t=%s", s.guestURLBase, slug, accessToken)
 	event := &domain.Event{
 		ID: id, Slug: slug, Name: strings.TrimSpace(in.Name),
 		GuestURL:    guestURL,
@@ -191,7 +208,7 @@ func (s *Service) CreateEvent(ctx context.Context, in CreateEventInput) (*Create
 		StartsAt: in.StartsAt.UTC(), EndsAt: in.EndsAt.UTC(), RevealAt: in.RevealAt.UTC(),
 		MaxGuests: in.MaxGuests, MaxPhotosPerGuest: in.MaxPhotosPerGuest,
 		AllowGalleryUploads: allowGalleryUploads, PreferCameraCapture: preferCameraCapture,
-		AllowImmediateGallery: in.AllowImmediateGallery, AutoApprovePhotos: autoApprove, CreatedAt: now, UpdatedAt: now,
+		AllowImmediateGallery: in.AllowImmediateGallery, AutoApprovePhotos: autoApprove, OfflineUploadGraceHours: in.OfflineUploadGraceHours, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.events.Create(ctx, event); err != nil {
 		return nil, err
@@ -206,11 +223,7 @@ func (s *Service) AdminLogin(ctx context.Context, password string) (string, time
 	if strings.TrimSpace(password) == "" {
 		return "", time.Time{}, domain.ErrUnauthorized
 	}
-	expected := s.adminPasswordHash
-	if expected == "" && s.adminPassword != "" {
-		expected = s.HashToken(s.adminPassword)
-	}
-	if expected == "" || !hmac.Equal([]byte(s.HashToken(password)), []byte(expected)) {
+	if !s.adminPasswordMatches(password) {
 		return "", time.Time{}, domain.ErrUnauthorized
 	}
 	if s.adminSessionTTL <= 0 {
@@ -226,6 +239,20 @@ func (s *Service) AdminLogin(ctx context.Context, password string) (string, time
 		return "", time.Time{}, err
 	}
 	return raw, session.ExpiresAt, nil
+}
+
+func (s *Service) adminPasswordMatches(password string) bool {
+	expected := s.adminPasswordHash
+	if expected != "" && strings.HasPrefix(expected, "$2") {
+		return bcrypt.CompareHashAndPassword([]byte(expected), []byte(password)) == nil
+	}
+	if expected == "" && s.adminPassword != "" {
+		expected = s.HashToken(s.adminPassword)
+	}
+	if expected == "" {
+		return false
+	}
+	return hmac.Equal([]byte(s.HashToken(password)), []byte(expected))
 }
 
 func (s *Service) AdminSession(ctx context.Context, raw string) (*domain.AdminSession, error) {
@@ -360,6 +387,9 @@ func (s *Service) publicWebURL(raw string) string {
 	if err != nil || parsed.Path == "" {
 		return raw
 	}
+	if parsed.Path != "" && strings.HasPrefix(parsed.Path, "/guest/") {
+		base = strings.TrimRight(s.guestURLBase, "/")
+	}
 	out := base + parsed.EscapedPath()
 	if parsed.RawQuery != "" {
 		out += "?" + parsed.RawQuery
@@ -368,6 +398,15 @@ func (s *Service) publicWebURL(raw string) string {
 		out += "#" + parsed.Fragment
 	}
 	return out
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func (s *Service) AdminPhotoArchive(ctx context.Context, eventID string, dst io.Writer) (int, error) {
@@ -483,6 +522,12 @@ func (s *Service) AdminUpdateEvent(ctx context.Context, eventID string, in Updat
 	if in.AutoApprovePhotos != nil {
 		event.AutoApprovePhotos = *in.AutoApprovePhotos
 	}
+	if in.OfflineUploadGraceHours != nil {
+		if *in.OfflineUploadGraceHours <= 0 || *in.OfflineUploadGraceHours > 168 {
+			return nil, domain.ErrValidation
+		}
+		event.OfflineUploadGraceHours = *in.OfflineUploadGraceHours
+	}
 	if !event.EndsAt.After(event.StartsAt) {
 		return nil, fmt.Errorf("%w: event end must be after its start", domain.ErrValidation)
 	}
@@ -497,6 +542,30 @@ func (s *Service) AdminUpdateEvent(ctx context.Context, eventID string, in Updat
 
 func (s *Service) AdminSetEventStatus(ctx context.Context, eventID string, status domain.EventStatus) (*domain.Event, error) {
 	return s.AdminUpdateEvent(ctx, eventID, UpdateEventInput{Status: &status})
+}
+
+func (s *Service) AdminRotateEventTokens(ctx context.Context, eventID string) (*RotateEventTokensOutput, error) {
+	event, err := s.events.GetByID(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	accessToken, err := randomToken()
+	if err != nil {
+		return nil, err
+	}
+	organizerToken, err := randomToken()
+	if err != nil {
+		return nil, err
+	}
+	event.AccessTokenHash = s.HashToken(accessToken)
+	event.OrganizerTokenHash = s.HashToken(organizerToken)
+	event.UpdatedAt = time.Now().UTC()
+	if err := s.events.Update(ctx, event); err != nil {
+		return nil, err
+	}
+	eventResponse := *event
+	eventResponse.GuestURL = fmt.Sprintf("%s/guest/%s?t=%s", s.guestURLBase, event.Slug, accessToken)
+	return &RotateEventTokensOutput{Event: &eventResponse, GuestURL: eventResponse.GuestURL, AccessToken: accessToken, OrganizerToken: organizerToken}, nil
 }
 
 func (s *Service) AdminModeratePhoto(ctx context.Context, eventID, photoID string, status domain.PhotoStatus) error {
@@ -539,6 +608,10 @@ type JoinOutput struct {
 }
 
 func (s *Service) JoinGuest(ctx context.Context, slug, accessToken, rawDeviceToken, displayName string) (*JoinOutput, string, error) {
+	return s.joinGuest(ctx, slug, accessToken, rawDeviceToken, displayName, false)
+}
+
+func (s *Service) joinGuest(ctx context.Context, slug, accessToken, rawDeviceToken, displayName string, allowOfflineGrace bool) (*JoinOutput, string, error) {
 	event, err := s.events.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, "", err
@@ -554,7 +627,9 @@ func (s *Service) JoinGuest(ctx context.Context, slug, accessToken, rawDeviceTok
 		return nil, "", domain.ErrEventNotStarted
 	}
 	if !now.Before(event.EndsAt) {
-		return nil, "", domain.ErrEventEnded
+		if !allowOfflineGrace || now.After(offlineUploadDeadline(event)) {
+			return nil, "", domain.ErrEventEnded
+		}
 	}
 	if rawDeviceToken == "" {
 		var err error
@@ -564,30 +639,11 @@ func (s *Service) JoinGuest(ctx context.Context, slug, accessToken, rawDeviceTok
 		}
 	}
 	hash := s.HashToken(rawDeviceToken)
-	guest, err := s.guests.FindByEventAndDeviceToken(ctx, event.ID, hash)
-	if errors.Is(err, domain.ErrNotFound) {
-		now := time.Now().UTC()
-		guest = &domain.Guest{ID: ulid.Make().String(), EventID: event.ID, DeviceTokenHash: hash, DisplayName: strings.TrimSpace(displayName), Status: domain.GuestActive, CreatedAt: now, LastSeenAt: now}
-		count, err := s.guests.CountByEvent(ctx, event.ID)
-		if err != nil {
-			return nil, "", err
-		}
-		if count >= event.MaxGuests {
-			return nil, "", domain.ErrGuestLimit
-		}
-		if err := s.guests.Create(ctx, guest); err != nil {
-			return nil, "", err
-		}
-	} else if err != nil {
+	createdAt := time.Now().UTC()
+	guest := &domain.Guest{ID: ulid.Make().String(), EventID: event.ID, DeviceTokenHash: hash, DisplayName: strings.TrimSpace(displayName), Status: domain.GuestActive, CreatedAt: createdAt, LastSeenAt: createdAt}
+	guest, err = s.guests.FindOrCreateByEventAndDeviceToken(ctx, guest, event.MaxGuests)
+	if err != nil {
 		return nil, "", err
-	} else {
-		guest.LastSeenAt = time.Now().UTC()
-		if displayName != "" {
-			guest.DisplayName = strings.TrimSpace(displayName)
-		}
-		if err := s.guests.Update(ctx, guest); err != nil {
-			return nil, "", err
-		}
 	}
 	return &JoinOutput{Event: event, Guest: guest, RemainingShots: remaining(event, guest), GalleryAvailable: galleryAvailable(event)}, rawDeviceToken, nil
 }
@@ -626,7 +682,7 @@ func (s *Service) PresignUpload(ctx context.Context, in PresignInput) (*PresignO
 			return nil, domain.ErrDuplicateRequest
 		}
 	}
-	joined, _, err := s.JoinGuest(ctx, in.EventSlug, in.AccessToken, in.DeviceToken, "")
+	joined, _, err := s.joinGuest(ctx, in.EventSlug, in.AccessToken, in.DeviceToken, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +725,7 @@ type RegisterPhotoInput struct {
 }
 
 func (s *Service) RegisterPhoto(ctx context.Context, in RegisterPhotoInput) (*domain.Photo, int, error) {
-	joined, _, err := s.JoinGuest(ctx, in.EventSlug, in.AccessToken, in.DeviceToken, "")
+	joined, _, err := s.joinGuest(ctx, in.EventSlug, in.AccessToken, in.DeviceToken, "", true)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -687,6 +743,16 @@ func (s *Service) RegisterPhoto(ctx context.Context, in RegisterPhotoInput) (*do
 	if info.SizeBytes != intent.SizeBytes || (info.ContentType != "" && info.ContentType != intent.ContentType) {
 		return nil, 0, fmt.Errorf("%w: uploaded object does not match presigned intent", domain.ErrValidation)
 	}
+	if err := s.verifyUploadedImage(ctx, intent.ObjectKey, intent.ContentType); err != nil {
+		return nil, 0, err
+	}
+	intent, err = s.uploads.MarkUsed(ctx, in.PhotoID, s.HashToken(in.UploadToken))
+	if err != nil {
+		return nil, 0, err
+	}
+	if intent.EventID != joined.Event.ID || intent.GuestID != joined.Guest.ID {
+		return nil, 0, domain.ErrForbidden
+	}
 	count, err := s.guests.IncrementUploadCount(ctx, joined.Guest.ID, joined.Event.MaxPhotosPerGuest)
 	if err != nil {
 		return nil, 0, err
@@ -698,9 +764,6 @@ func (s *Service) RegisterPhoto(ctx context.Context, in RegisterPhotoInput) (*do
 	}
 	photo := &domain.Photo{ID: intent.PhotoID, EventID: joined.Event.ID, GuestID: joined.Guest.ID, ObjectKey: intent.ObjectKey, ContentType: intent.ContentType, SizeBytes: intent.SizeBytes, Message: strings.TrimSpace(in.Message), Status: status, IsDeveloped: galleryAvailable(joined.Event), CreatedAt: now, UpdatedAt: now}
 	if err := s.photos.Create(ctx, photo); err != nil {
-		return nil, 0, err
-	}
-	if err := s.uploads.MarkUsed(ctx, intent.PhotoID); err != nil {
 		return nil, 0, err
 	}
 	return photo, joined.Event.MaxPhotosPerGuest - count, nil
@@ -803,15 +866,74 @@ func remaining(event *domain.Event, guest *domain.Guest) int {
 	return left
 }
 
+func offlineUploadDeadline(event *domain.Event) time.Time {
+	hours := event.OfflineUploadGraceHours
+	if hours <= 0 {
+		hours = 24
+	}
+	return event.EndsAt.Add(time.Duration(hours) * time.Hour)
+}
+
 func galleryAvailable(event *domain.Event) bool {
 	return !time.Now().UTC().Before(event.RevealAt)
 }
 
 func allowedImageType(contentType string) bool {
 	switch strings.ToLower(contentType) {
-	case "", "image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif":
+	case "image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif":
 		return true
 	default:
 		return false
 	}
+}
+
+func (s *Service) verifyUploadedImage(ctx context.Context, objectKey, contentType string) error {
+	reader, err := s.storage.Open(ctx, objectKey)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	header := make([]byte, 512)
+	n, err := io.ReadFull(reader, header)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		return err
+	}
+	header = header[:n]
+	if len(bytes.TrimSpace(header)) == 0 {
+		return fmt.Errorf("%w: uploaded object is empty", domain.ErrValidation)
+	}
+	if imageBytesMatchContentType(header, contentType) {
+		return nil
+	}
+	return fmt.Errorf("%w: uploaded object is not a valid %s", domain.ErrValidation, contentType)
+}
+
+func imageBytesMatchContentType(header []byte, contentType string) bool {
+	contentType = strings.ToLower(contentType)
+	detected := http.DetectContentType(header)
+	switch contentType {
+	case "image/jpeg", "image/jpg":
+		return detected == "image/jpeg"
+	case "image/png":
+		return detected == "image/png"
+	case "image/webp":
+		return len(header) >= 12 && string(header[:4]) == "RIFF" && string(header[8:12]) == "WEBP"
+	case "image/heic", "image/heif":
+		return hasISOBMFFBrand(header, "heic") || hasISOBMFFBrand(header, "heix") || hasISOBMFFBrand(header, "hevc") || hasISOBMFFBrand(header, "hevx") || hasISOBMFFBrand(header, "mif1") || hasISOBMFFBrand(header, "msf1")
+	default:
+		return false
+	}
+}
+
+func hasISOBMFFBrand(header []byte, brand string) bool {
+	if len(header) < 12 || string(header[4:8]) != "ftyp" {
+		return false
+	}
+	for i := 8; i+4 <= len(header) && i < 64; i += 4 {
+		if string(header[i:i+4]) == brand {
+			return true
+		}
+	}
+	return false
 }

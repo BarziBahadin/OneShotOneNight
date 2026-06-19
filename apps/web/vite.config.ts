@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
   const publicWebURL = usablePublicURL(rootEnv.PUBLIC_WEB_URL) ?? `http://${lanAddress()}:3000`;
 
   return {
-    plugins: [react(), appleAppSiteAssociation(rootEnv), localBackend({ ...rootEnv, PUBLIC_WEB_URL: publicWebURL })],
+    plugins: [react(), localBackend({ ...rootEnv, PUBLIC_WEB_URL: publicWebURL })],
     define: {
       "import.meta.env.VITE_PUBLIC_WEB_URL": JSON.stringify(publicWebURL)
     },
@@ -43,79 +43,6 @@ export default defineConfig(({ mode }) => {
     }
   };
 });
-
-function appleAppSiteAssociation(rootEnv: Record<string, string>): Plugin {
-  const body = JSON.stringify(appleAppSiteAssociationBody(rootEnv));
-  const routes = new Set(["/.well-known/apple-app-site-association", "/apple-app-site-association"]);
-
-  return {
-    name: "oneshot-apple-app-site-association",
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const pathname = req.url?.split("?")[0] ?? "";
-        if (!routes.has(pathname)) {
-          next();
-          return;
-        }
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "application/json");
-        res.end(body);
-      });
-    },
-    configurePreviewServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const pathname = req.url?.split("?")[0] ?? "";
-        if (!routes.has(pathname)) {
-          next();
-          return;
-        }
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "application/json");
-        res.end(body);
-      });
-    },
-    generateBundle() {
-      this.emitFile({
-        type: "asset",
-        fileName: ".well-known/apple-app-site-association",
-        source: body
-      });
-      this.emitFile({
-        type: "asset",
-        fileName: "apple-app-site-association",
-        source: body
-      });
-    }
-  };
-}
-
-function appleAppSiteAssociationBody(rootEnv: Record<string, string>) {
-  const teamID = rootEnv.APPLE_TEAM_ID ?? "";
-  const appBundleID = rootEnv.IOS_APP_BUNDLE_ID ?? "";
-  const clipBundleID = rootEnv.IOS_APP_CLIP_BUNDLE_ID ?? "";
-  const pathPrefix = rootEnv.APP_CLIP_PATH_PREFIX || "/guest/*";
-  const appIDs = teamID ? [appBundleID, clipBundleID].filter(Boolean).map((bundleID) => `${teamID}.${bundleID}`) : [];
-  const appClips = teamID && clipBundleID ? [`${teamID}.${clipBundleID}`] : [];
-
-  return {
-    applinks: {
-      details: [
-        {
-          appIDs,
-          components: [
-            {
-              "/": pathPrefix,
-              comment: "OneShotOneNight guest event links"
-            }
-          ]
-        }
-      ]
-    },
-    appclips: {
-      apps: appClips
-    }
-  };
-}
 
 function localBackend(rootEnv: Record<string, string>): Plugin {
   let api: ChildProcess | undefined;

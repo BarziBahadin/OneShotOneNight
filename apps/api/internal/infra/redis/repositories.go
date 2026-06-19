@@ -23,26 +23,27 @@ type UploadIntentRepo struct{ store *Store }
 type AdminSessionRepo struct{ store *Store }
 
 type storedEvent struct {
-	ID                    string             `json:"id"`
-	Slug                  string             `json:"slug"`
-	Name                  string             `json:"name"`
-	Description           string             `json:"description"`
-	GuestURL              string             `json:"guest_url"`
-	AccessTokenHash       string             `json:"access_token_hash"`
-	OrganizerTokenHash    string             `json:"organizer_token_hash"`
-	Mode                  domain.EventMode   `json:"mode"`
-	Status                domain.EventStatus `json:"status"`
-	StartsAt              time.Time          `json:"starts_at"`
-	EndsAt                time.Time          `json:"ends_at"`
-	RevealAt              time.Time          `json:"reveal_at"`
-	MaxGuests             int                `json:"max_guests"`
-	MaxPhotosPerGuest     int                `json:"max_photos_per_guest"`
-	AllowGalleryUploads   bool               `json:"allow_gallery_uploads"`
-	PreferCameraCapture   bool               `json:"prefer_camera_capture"`
-	AllowImmediateGallery bool               `json:"allow_immediate_gallery"`
-	AutoApprovePhotos     bool               `json:"auto_approve_photos"`
-	CreatedAt             time.Time          `json:"created_at"`
-	UpdatedAt             time.Time          `json:"updated_at"`
+	ID                      string             `json:"id"`
+	Slug                    string             `json:"slug"`
+	Name                    string             `json:"name"`
+	Description             string             `json:"description"`
+	GuestURL                string             `json:"guest_url"`
+	AccessTokenHash         string             `json:"access_token_hash"`
+	OrganizerTokenHash      string             `json:"organizer_token_hash"`
+	Mode                    domain.EventMode   `json:"mode"`
+	Status                  domain.EventStatus `json:"status"`
+	StartsAt                time.Time          `json:"starts_at"`
+	EndsAt                  time.Time          `json:"ends_at"`
+	RevealAt                time.Time          `json:"reveal_at"`
+	MaxGuests               int                `json:"max_guests"`
+	MaxPhotosPerGuest       int                `json:"max_photos_per_guest"`
+	AllowGalleryUploads     bool               `json:"allow_gallery_uploads"`
+	PreferCameraCapture     bool               `json:"prefer_camera_capture"`
+	AllowImmediateGallery   bool               `json:"allow_immediate_gallery"`
+	AutoApprovePhotos       bool               `json:"auto_approve_photos"`
+	OfflineUploadGraceHours int                `json:"offline_upload_grace_hours"`
+	CreatedAt               time.Time          `json:"created_at"`
+	UpdatedAt               time.Time          `json:"updated_at"`
 }
 
 func NewClient(addr, password string, db int) *goredis.Client {
@@ -159,7 +160,7 @@ func storedEventFromDomain(event *domain.Event) storedEvent {
 		Mode: event.Mode, Status: event.Status, StartsAt: event.StartsAt, EndsAt: event.EndsAt,
 		RevealAt: event.RevealAt, MaxGuests: event.MaxGuests, MaxPhotosPerGuest: event.MaxPhotosPerGuest,
 		AllowGalleryUploads: event.AllowGalleryUploads, PreferCameraCapture: event.PreferCameraCapture,
-		AllowImmediateGallery: event.AllowImmediateGallery, AutoApprovePhotos: event.AutoApprovePhotos, CreatedAt: event.CreatedAt, UpdatedAt: event.UpdatedAt,
+		AllowImmediateGallery: event.AllowImmediateGallery, AutoApprovePhotos: event.AutoApprovePhotos, OfflineUploadGraceHours: event.OfflineUploadGraceHours, CreatedAt: event.CreatedAt, UpdatedAt: event.UpdatedAt,
 	}
 }
 
@@ -170,7 +171,7 @@ func (event storedEvent) toDomain() *domain.Event {
 		Mode: event.Mode, Status: event.Status, StartsAt: event.StartsAt, EndsAt: event.EndsAt,
 		RevealAt: event.RevealAt, MaxGuests: event.MaxGuests, MaxPhotosPerGuest: event.MaxPhotosPerGuest,
 		AllowGalleryUploads: event.AllowGalleryUploads, PreferCameraCapture: event.PreferCameraCapture,
-		AllowImmediateGallery: event.AllowImmediateGallery, AutoApprovePhotos: event.AutoApprovePhotos, CreatedAt: event.CreatedAt, UpdatedAt: event.UpdatedAt,
+		AllowImmediateGallery: event.AllowImmediateGallery, AutoApprovePhotos: event.AutoApprovePhotos, OfflineUploadGraceHours: event.OfflineUploadGraceHours, CreatedAt: event.CreatedAt, UpdatedAt: event.UpdatedAt,
 	}
 }
 
@@ -201,6 +202,54 @@ func (r *GuestRepo) FindByEventAndDeviceToken(ctx context.Context, eventID strin
 		return nil, err
 	}
 	return r.GetByID(ctx, id)
+}
+
+func (r *GuestRepo) FindOrCreateByEventAndDeviceToken(ctx context.Context, guest *domain.Guest, maxGuests int) (*domain.Guest, error) {
+	lookupKey := key("guest_lookup", guest.EventID, guest.DeviceTokenHash)
+	guestsKey := key("event_guests", guest.EventID)
+	var out *domain.Guest
+	err := r.store.client.Watch(ctx, func(tx *goredis.Tx) error {
+		if id, err := tx.Get(ctx, lookupKey).Result(); err == nil {
+			existing, err := r.getByIDWithClient(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			existing.LastSeenAt = time.Now().UTC()
+			if guest.DisplayName != "" {
+				existing.DisplayName = guest.DisplayName
+			}
+			b, _ := json.Marshal(existing)
+			_, err = tx.TxPipelined(ctx, func(pipe goredis.Pipeliner) error {
+				pipe.Set(ctx, key("guest", existing.ID), b, 0)
+				return nil
+			})
+			out = existing
+			return err
+		} else if !errors.Is(err, goredis.Nil) {
+			return err
+		}
+
+		count, err := tx.SCard(ctx, guestsKey).Result()
+		if err != nil {
+			return err
+		}
+		if int(count) >= maxGuests {
+			return domain.ErrGuestLimit
+		}
+		b, _ := json.Marshal(guest)
+		_, err = tx.TxPipelined(ctx, func(pipe goredis.Pipeliner) error {
+			pipe.Set(ctx, key("guest", guest.ID), b, 0)
+			pipe.Set(ctx, lookupKey, guest.ID, 0)
+			pipe.SAdd(ctx, guestsKey, guest.ID)
+			return nil
+		})
+		out = guest
+		return err
+	}, lookupKey, guestsKey)
+	if errors.Is(err, goredis.TxFailedErr) {
+		return r.FindOrCreateByEventAndDeviceToken(ctx, guest, maxGuests)
+	}
+	return out, err
 }
 
 func (r *GuestRepo) CountByEvent(ctx context.Context, eventID string) (int, error) {
@@ -336,14 +385,34 @@ func (r *UploadIntentRepo) GetByPhotoID(ctx context.Context, photoID string) (*d
 	return &intent, nil
 }
 
-func (r *UploadIntentRepo) MarkUsed(ctx context.Context, photoID string) error {
-	intent, err := r.GetByPhotoID(ctx, photoID)
-	if err != nil {
+func (r *UploadIntentRepo) MarkUsed(ctx context.Context, photoID string, tokenHash string) (*domain.UploadIntent, error) {
+	intentKey := key("upload_intent", photoID)
+	var out *domain.UploadIntent
+	err := r.store.client.Watch(ctx, func(tx *goredis.Tx) error {
+		var intent domain.UploadIntent
+		if err := getJSON(ctx, tx, intentKey, &intent); err != nil {
+			return err
+		}
+		if intent.Used || intent.TokenHash != tokenHash || time.Now().UTC().After(intent.ExpiresAt) {
+			return domain.ErrForbidden
+		}
+		intent.Used = true
+		b, _ := json.Marshal(intent)
+		ttl := time.Until(intent.ExpiresAt)
+		if ttl <= 0 {
+			return domain.ErrForbidden
+		}
+		_, err := tx.TxPipelined(ctx, func(pipe goredis.Pipeliner) error {
+			pipe.Set(ctx, intentKey, b, ttl)
+			return nil
+		})
+		out = &intent
 		return err
+	}, intentKey)
+	if errors.Is(err, goredis.TxFailedErr) {
+		return r.MarkUsed(ctx, photoID, tokenHash)
 	}
-	intent.Used = true
-	b, _ := json.Marshal(intent)
-	return r.store.client.Set(ctx, key("upload_intent", photoID), b, time.Until(intent.ExpiresAt)).Err()
+	return out, err
 }
 
 func (r *AdminSessionRepo) Create(ctx context.Context, session *domain.AdminSession, ttl time.Duration) error {

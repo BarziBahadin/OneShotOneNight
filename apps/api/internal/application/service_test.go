@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	"oneshotonenight/api/internal/domain"
 	"oneshotonenight/api/internal/ports"
 )
@@ -25,6 +26,31 @@ func TestCreateEventDefaultsToAutoApproval(t *testing.T) {
 	}
 	if !out.Event.AllowGalleryUploads || !out.Event.PreferCameraCapture {
 		t.Fatal("new events should default to gallery uploads and camera-first capture")
+	}
+}
+
+func TestAdminLoginAcceptsBcryptPasswordHash(t *testing.T) {
+	repos := newTestRepos()
+	hash, err := bcrypt.GenerateFromPassword([]byte("correct horse"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(NewServiceInput{
+		Events: repos.events, Guests: repos.guests, Photos: repos.photos,
+		Idempotency: memoryIdempotency{}, Uploads: repos.uploads, AdminSessions: memoryAdminSessions{items: map[string]*domain.AdminSession{}}, Storage: repos.storage,
+		Pepper: "test-pepper", WebURL: "http://example.test", MaxBytes: 1024,
+		AdminPasswordHash: string(hash),
+	})
+
+	token, expires, err := service.AdminLogin(context.Background(), "correct horse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token == "" || !expires.After(time.Now()) {
+		t.Fatal("expected session token and future expiry")
+	}
+	if _, _, err := service.AdminLogin(context.Background(), "wrong"); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("wrong password got %v, want unauthorized", err)
 	}
 }
 
@@ -98,6 +124,48 @@ func TestRegisterPhotoUsesAutoApprovalSetting(t *testing.T) {
 				t.Fatalf("got %s, want %s", photo.Status, tt.want)
 			}
 		})
+	}
+}
+
+func TestPresignAllowsOfflineGraceAfterEventEnd(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-2*time.Hour), time.Now().Add(-time.Hour))
+	event.OfflineUploadGraceHours = 24
+	event.AccessTokenHash = service.HashToken("guest-token")
+	repos.events.items[event.ID] = event
+
+	_, _, err := service.JoinGuest(context.Background(), event.Slug, "guest-token", "", "")
+	if !errors.Is(err, domain.ErrEventEnded) {
+		t.Fatalf("normal join got %v, want %v", err, domain.ErrEventEnded)
+	}
+
+	out, err := service.PresignUpload(context.Background(), PresignInput{
+		EventSlug: "night", AccessToken: "guest-token", DeviceToken: "phone-1",
+		FileName: "photo.jpg", ContentType: "image/jpeg", SizeBytes: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.PhotoID == "" {
+		t.Fatal("expected presign output")
+	}
+}
+
+func TestPresignRejectsAfterOfflineGrace(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-4*time.Hour), time.Now().Add(-2*time.Hour))
+	event.OfflineUploadGraceHours = 1
+	event.AccessTokenHash = service.HashToken("guest-token")
+	repos.events.items[event.ID] = event
+
+	_, err := service.PresignUpload(context.Background(), PresignInput{
+		EventSlug: "night", AccessToken: "guest-token", DeviceToken: "phone-1",
+		FileName: "photo.jpg", ContentType: "image/jpeg", SizeBytes: 10,
+	})
+	if !errors.Is(err, domain.ErrEventEnded) {
+		t.Fatalf("got %v, want %v", err, domain.ErrEventEnded)
 	}
 }
 
@@ -215,6 +283,28 @@ func (m *memoryGuests) FindByEventAndDeviceToken(_ context.Context, eventID, has
 	}
 	return nil, domain.ErrNotFound
 }
+func (m *memoryGuests) FindOrCreateByEventAndDeviceToken(_ context.Context, guest *domain.Guest, maxGuests int) (*domain.Guest, error) {
+	for _, existing := range m.items {
+		if existing.EventID == guest.EventID && existing.DeviceTokenHash == guest.DeviceTokenHash {
+			existing.LastSeenAt = time.Now().UTC()
+			if guest.DisplayName != "" {
+				existing.DisplayName = guest.DisplayName
+			}
+			return existing, nil
+		}
+	}
+	count := 0
+	for _, existing := range m.items {
+		if existing.EventID == guest.EventID {
+			count++
+		}
+	}
+	if count >= maxGuests {
+		return nil, domain.ErrGuestLimit
+	}
+	m.items[guest.ID] = guest
+	return guest, nil
+}
 func (m *memoryGuests) CountByEvent(_ context.Context, eventID string) (int, error) {
 	count := 0
 	for _, guest := range m.items {
@@ -295,9 +385,16 @@ func (m *memoryUploads) GetByPhotoID(_ context.Context, id string) (*domain.Uplo
 	}
 	return intent, nil
 }
-func (m *memoryUploads) MarkUsed(_ context.Context, id string) error {
-	m.items[id].Used = true
-	return nil
+func (m *memoryUploads) MarkUsed(_ context.Context, id string, tokenHash string) (*domain.UploadIntent, error) {
+	intent, ok := m.items[id]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	if intent.Used || intent.TokenHash != tokenHash || time.Now().UTC().After(intent.ExpiresAt) {
+		return nil, domain.ErrForbidden
+	}
+	intent.Used = true
+	return intent, nil
 }
 
 type memoryStorage struct{}
@@ -309,7 +406,7 @@ func (memoryStorage) Head(context.Context, string) (*ports.ObjectInfo, error) {
 	return &ports.ObjectInfo{ContentType: "image/jpeg", SizeBytes: 10}, nil
 }
 func (memoryStorage) Open(context.Context, string) (io.ReadCloser, error) {
-	return io.NopCloser(bytes.NewReader([]byte("photo-data"))), nil
+	return io.NopCloser(bytes.NewReader([]byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F'})), nil
 }
 func (memoryStorage) PublicURL(context.Context, string) (string, error) {
 	return "http://image.test/photo.jpg", nil
@@ -319,4 +416,26 @@ type memoryIdempotency struct{}
 
 func (memoryIdempotency) Reserve(context.Context, string, string, time.Duration) (bool, error) {
 	return true, nil
+}
+
+type memoryAdminSessions struct {
+	items map[string]*domain.AdminSession
+}
+
+func (m memoryAdminSessions) Create(_ context.Context, session *domain.AdminSession, _ time.Duration) error {
+	m.items[session.ID] = session
+	return nil
+}
+
+func (m memoryAdminSessions) Get(_ context.Context, id string) (*domain.AdminSession, error) {
+	session, ok := m.items[id]
+	if !ok {
+		return nil, domain.ErrUnauthorized
+	}
+	return session, nil
+}
+
+func (m memoryAdminSessions) Delete(_ context.Context, id string) error {
+	delete(m.items, id)
+	return nil
 }

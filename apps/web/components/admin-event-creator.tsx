@@ -31,6 +31,7 @@ export function AdminEventCreator() {
         reveal_at: (reveal === "during" ? startsAt : endsAt).toISOString(),
         max_guests: Number(form.get("max_guests")),
         max_photos_per_guest: Number(form.get("max_photos_per_guest")),
+        offline_upload_grace_hours: Number(form.get("offline_upload_grace_hours")),
         allow_gallery_uploads: form.get("allow_gallery_uploads") === "on",
         prefer_camera_capture: form.get("prefer_camera_capture") === "on",
         allow_immediate_gallery: false,
@@ -78,6 +79,7 @@ export function AdminEventCreator() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Guest limit" name="max_guests" type="number" defaultValue="250" min="1" />
                 <Field label="Photos per guest" name="max_photos_per_guest" type="number" defaultValue="12" min="1" />
+                <Field label="Offline retry hours" name="offline_upload_grace_hours" type="number" defaultValue="24" min="1" max="168" />
               </div>
               <label className="flex items-center gap-3 text-sm font-semibold">
                 <input name="allow_gallery_uploads" type="checkbox" defaultChecked /> Let guests choose existing photos

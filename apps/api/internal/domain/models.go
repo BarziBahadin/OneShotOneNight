@@ -36,26 +36,27 @@ const (
 )
 
 type Event struct {
-	ID                    string      `json:"id"`
-	Slug                  string      `json:"slug"`
-	Name                  string      `json:"name"`
-	Description           string      `json:"description"`
-	GuestURL              string      `json:"-"`
-	AccessTokenHash       string      `json:"-"`
-	OrganizerTokenHash    string      `json:"-"`
-	Mode                  EventMode   `json:"mode"`
-	Status                EventStatus `json:"status"`
-	StartsAt              time.Time   `json:"starts_at"`
-	EndsAt                time.Time   `json:"ends_at"`
-	RevealAt              time.Time   `json:"reveal_at"`
-	MaxGuests             int         `json:"max_guests"`
-	MaxPhotosPerGuest     int         `json:"max_photos_per_guest"`
-	AllowGalleryUploads   bool        `json:"allow_gallery_uploads"`
-	PreferCameraCapture   bool        `json:"prefer_camera_capture"`
-	AllowImmediateGallery bool        `json:"allow_immediate_gallery"`
-	AutoApprovePhotos     bool        `json:"auto_approve_photos"`
-	CreatedAt             time.Time   `json:"created_at"`
-	UpdatedAt             time.Time   `json:"updated_at"`
+	ID                      string      `json:"id"`
+	Slug                    string      `json:"slug"`
+	Name                    string      `json:"name"`
+	Description             string      `json:"description"`
+	GuestURL                string      `json:"-"`
+	AccessTokenHash         string      `json:"-"`
+	OrganizerTokenHash      string      `json:"-"`
+	Mode                    EventMode   `json:"mode"`
+	Status                  EventStatus `json:"status"`
+	StartsAt                time.Time   `json:"starts_at"`
+	EndsAt                  time.Time   `json:"ends_at"`
+	RevealAt                time.Time   `json:"reveal_at"`
+	MaxGuests               int         `json:"max_guests"`
+	MaxPhotosPerGuest       int         `json:"max_photos_per_guest"`
+	AllowGalleryUploads     bool        `json:"allow_gallery_uploads"`
+	PreferCameraCapture     bool        `json:"prefer_camera_capture"`
+	AllowImmediateGallery   bool        `json:"allow_immediate_gallery"`
+	AutoApprovePhotos       bool        `json:"auto_approve_photos"`
+	OfflineUploadGraceHours int         `json:"offline_upload_grace_hours"`
+	CreatedAt               time.Time   `json:"created_at"`
+	UpdatedAt               time.Time   `json:"updated_at"`
 }
 
 type Guest struct {

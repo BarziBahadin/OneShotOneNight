@@ -21,6 +21,7 @@ type GuestRepository interface {
 	Create(ctx context.Context, guest *domain.Guest) error
 	GetByID(ctx context.Context, id string) (*domain.Guest, error)
 	FindByEventAndDeviceToken(ctx context.Context, eventID string, deviceTokenHash string) (*domain.Guest, error)
+	FindOrCreateByEventAndDeviceToken(ctx context.Context, guest *domain.Guest, maxGuests int) (*domain.Guest, error)
 	CountByEvent(ctx context.Context, eventID string) (int, error)
 	ListByEvent(ctx context.Context, eventID string) ([]domain.Guest, error)
 	IncrementUploadCount(ctx context.Context, guestID string, limit int) (int, error)
@@ -41,7 +42,7 @@ type IdempotencyRepository interface {
 type UploadIntentRepository interface {
 	Create(ctx context.Context, intent *domain.UploadIntent, ttl time.Duration) error
 	GetByPhotoID(ctx context.Context, photoID string) (*domain.UploadIntent, error)
-	MarkUsed(ctx context.Context, photoID string) error
+	MarkUsed(ctx context.Context, photoID string, tokenHash string) (*domain.UploadIntent, error)
 }
 
 type AdminSessionRepository interface {

@@ -15,5 +15,6 @@ var (
 	ErrUploadLimit       = errors.New("upload_limit_reached")
 	ErrGuestLimit        = errors.New("guest_limit_reached")
 	ErrDuplicateRequest  = errors.New("duplicate_request")
+	ErrRateLimited       = errors.New("rate_limited")
 	ErrUnsupportedStatus = errors.New("unsupported_status")
 )
