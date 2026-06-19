@@ -1,0 +1,20 @@
+{
+  "name": "OneShotOneNight",
+  "short_name": "OneShot",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "description": "Camera-first private event photo app with delayed reveal galleries.",
+  "categories": ["photo", "events", "social"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
