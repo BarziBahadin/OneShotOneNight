@@ -46,12 +46,6 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(staleWhileRevalidate(request));
 });
 
-self.addEventListener("sync", (event) => {
-  if (event.tag === "oneshotonenight-upload-queue") {
-    event.waitUntil(notifyClients({ type: "SYNC_UPLOAD_QUEUE" }));
-  }
-});
-
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
@@ -84,9 +78,4 @@ async function staleWhileRevalidate(request) {
     return response;
   }).catch(() => cached);
   return cached || fetched;
-}
-
-async function notifyClients(message) {
-  const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
-  await Promise.all(clients.map((client) => client.postMessage(message)));
 }

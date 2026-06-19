@@ -180,18 +180,65 @@ func TestGalleryRevealIsIndependentFromApproval(t *testing.T) {
 	repos.events.items[event.ID] = event
 	repos.photos.items["photo-1"] = &domain.Photo{ID: "photo-1", EventID: event.ID, Status: domain.PhotoApproved}
 
-	_, _, err := service.Gallery(context.Background(), event.Slug, "guest-token", false)
+	_, _, err := service.Gallery(context.Background(), event.Slug, "guest-token")
 	if !errors.Is(err, domain.ErrRevealNotReached) {
 		t.Fatalf("got %v, want %v", err, domain.ErrRevealNotReached)
 	}
 
 	event.RevealAt = time.Now().Add(-time.Minute)
-	_, photos, err := service.Gallery(context.Background(), event.Slug, "guest-token", false)
+	_, photos, err := service.Gallery(context.Background(), event.Slug, "guest-token")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(photos) != 1 {
 		t.Fatalf("got %d photos, want 1", len(photos))
+	}
+}
+
+func TestGallerySkipsPhotosWithBrokenPublicURL(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	event.AccessTokenHash = service.HashToken("guest-token")
+	event.RevealAt = time.Now().Add(-time.Minute)
+	repos.events.items[event.ID] = event
+	repos.photos.items["photo-1"] = &domain.Photo{ID: "photo-1", EventID: event.ID, ObjectKey: "ok.jpg", Status: domain.PhotoApproved}
+	repos.photos.items["photo-2"] = &domain.Photo{ID: "photo-2", EventID: event.ID, ObjectKey: "broken.jpg", Status: domain.PhotoApproved}
+	repos.storage.publicURLErrors = map[string]error{"broken.jpg": errors.New("s3 signing failed")}
+
+	_, photos, err := service.Gallery(context.Background(), event.Slug, "guest-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(photos) != 1 || photos[0].ObjectKey != "ok.jpg" {
+		t.Fatalf("got photos %#v, want only ok.jpg", photos)
+	}
+}
+
+func TestAdminPhotoArchiveRejectsOversizedArchive(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	repos.events.items[event.ID] = event
+	repos.photos.items["photo-1"] = &domain.Photo{ID: "photo-1", EventID: event.ID, ObjectKey: "huge.jpg", Status: domain.PhotoApproved, SizeBytes: maxArchiveBytes + 1}
+
+	_, err := service.AdminPhotoArchive(context.Background(), event.ID, io.Discard)
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("got %v, want validation error", err)
+	}
+}
+
+func TestAdminEventFailsOnBrokenPhotoURL(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	repos.events.items[event.ID] = event
+	repos.photos.items["photo-1"] = &domain.Photo{ID: "photo-1", EventID: event.ID, ObjectKey: "broken.jpg", Status: domain.PhotoApproved}
+	repos.storage.publicURLErrors = map[string]error{"broken.jpg": errors.New("s3 signing failed")}
+
+	_, err := service.AdminEvent(context.Background(), event.ID)
+	if err == nil {
+		t.Fatal("expected admin event to fail on broken photo URL")
 	}
 }
 
@@ -397,18 +444,23 @@ func (m *memoryUploads) MarkUsed(_ context.Context, id string, tokenHash string)
 	return intent, nil
 }
 
-type memoryStorage struct{}
+type memoryStorage struct {
+	publicURLErrors map[string]error
+}
 
-func (memoryStorage) PresignPut(context.Context, string, string, time.Duration) (string, error) {
+func (*memoryStorage) PresignPut(context.Context, string, string, time.Duration) (string, error) {
 	return "http://upload.test", nil
 }
-func (memoryStorage) Head(context.Context, string) (*ports.ObjectInfo, error) {
+func (*memoryStorage) Head(context.Context, string) (*ports.ObjectInfo, error) {
 	return &ports.ObjectInfo{ContentType: "image/jpeg", SizeBytes: 10}, nil
 }
-func (memoryStorage) Open(context.Context, string) (io.ReadCloser, error) {
+func (*memoryStorage) Open(context.Context, string) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader([]byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F'})), nil
 }
-func (memoryStorage) PublicURL(context.Context, string) (string, error) {
+func (m *memoryStorage) PublicURL(_ context.Context, objectKey string) (string, error) {
+	if err := m.publicURLErrors[objectKey]; err != nil {
+		return "", err
+	}
 	return "http://image.test/photo.jpg", nil
 }
 

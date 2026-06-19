@@ -38,8 +38,13 @@ func main() {
 		Pepper: cfg.TokenPepper, WebURL: cfg.PublicWebURL, GuestURLBase: cfg.PublicWebURL, MaxBytes: cfg.MaxUploadBytes,
 		DisableGuestTokens: cfg.DisableGuestTokens, AdminPassword: cfg.AdminPassword, AdminPasswordHash: cfg.AdminPasswordHash, AdminSessionTTL: cfg.AdminSessionTTL,
 	})
+	handler, err := httpapi.NewWithError(svc, cfg, log)
+	if err != nil {
+		log.Error("invalid http configuration", "error", err)
+		os.Exit(1)
+	}
 	server := &http.Server{
-		Addr: cfg.HTTPAddr, Handler: httpapi.New(svc, cfg, log),
+		Addr: cfg.HTTPAddr, Handler: handler,
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second,
 	}
 	go func() {

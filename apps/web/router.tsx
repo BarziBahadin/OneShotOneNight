@@ -6,7 +6,6 @@ import { AdminEventDetailView } from "@/components/admin-event-detail";
 import { AdminEvents } from "@/components/admin-events";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminLogin } from "@/components/admin-login";
-import { EventCreator } from "@/components/event-creator";
 import { GalleryView } from "@/components/gallery-view";
 import { GuestCamera } from "@/components/guest-camera";
 
@@ -23,7 +22,6 @@ export function AppRoutes() {
       </Route>
       <Route path="/guest/:slug" element={<GuestRoute />} />
       <Route path="/gallery/:slug" element={<GalleryRoute />} />
-      <Route path="/host/events/new" element={<EventCreator />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

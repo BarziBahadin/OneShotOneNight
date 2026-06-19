@@ -1,17 +1,8 @@
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
-const adminCreateToken = import.meta.env.VITE_ADMIN_CREATE_TOKEN;
 const configuredPublicWebURL = import.meta.env.VITE_PUBLIC_WEB_URL;
 
 export function apiBaseURL() {
   if (configuredApiBase) return configuredApiBase.replace(/\/$/, "");
-  if (typeof window !== "undefined") {
-    const apiOverride = new URLSearchParams(window.location.search).get("api");
-    if (apiOverride) {
-      return apiOverride.replace(/\/$/, "");
-    }
-    window.localStorage.removeItem("oneshotonenight_api_base");
-    return "";
-  }
   return "";
 }
 
@@ -168,14 +159,6 @@ function readCookie(name: string) {
     ?.slice(prefix.length) ?? "";
 }
 
-export function createEvent(payload: unknown) {
-  return request<{ event: EventRecord; guest_url: string; access_token: string; organizer_token: string }>("/api/v1/events", {
-    method: "POST",
-    headers: adminCreateToken ? { Authorization: `Bearer ${adminCreateToken}` } : undefined,
-    body: JSON.stringify(payload)
-  });
-}
-
 export function adminLogin(password: string) {
   return request<{ ok: boolean; expires_at: string }>("/api/v1/admin/login", {
     method: "POST",
@@ -204,7 +187,7 @@ export function adminEvents(params?: { q?: string; status?: string }) {
 }
 
 export function adminCreateEvent(payload: unknown) {
-  return request<{ event: EventRecord; guest_url: string; access_token: string; organizer_token: string }>("/api/v1/admin/events", {
+  return request<{ event: EventRecord; guest_url: string; access_token: string }>("/api/v1/admin/events", {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -226,7 +209,7 @@ export function adminUpdateEvent(eventID: string, payload: unknown) {
 }
 
 export function adminResetEventTokens(eventID: string) {
-  return request<{ event: EventRecord; guest_url: string; access_token: string; organizer_token: string }>(`/api/v1/admin/events/${eventID}/tokens/reset`, {
+  return request<{ event: EventRecord; guest_url: string; access_token: string }>(`/api/v1/admin/events/${eventID}/tokens/reset`, {
     method: "POST"
   });
 }
@@ -261,12 +244,12 @@ export function joinGuest(slug: string, accessToken: string, displayName: string
 }
 
 export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string) {
-  const contentType = file.type || "image/jpeg";
+  const contentType = file.type || contentTypeFromFileName(file.name);
   const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_token: string; remaining_shots: number }>(
     `/api/v1/guest/${slug}/uploads/presign`,
     {
       method: "POST",
-      headers: { "Idempotency-Key": crypto.randomUUID() },
+      headers: { "Idempotency-Key": randomID() },
       body: JSON.stringify({
         access_token: accessToken,
         file_name: file.name,
@@ -297,6 +280,31 @@ export async function uploadGuestPhoto(slug: string, accessToken: string, file: 
       message
     })
   });
+}
+
+function randomID() {
+  const webCrypto = globalThis.crypto;
+  if (webCrypto?.randomUUID) {
+    return webCrypto.randomUUID();
+  }
+  if (!webCrypto?.getRandomValues) {
+    throw new APIError("Secure browser crypto is required for uploads.", 400, "crypto_unavailable");
+  }
+  const bytes = new Uint8Array(16);
+  webCrypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((value) => value.toString(16).padStart(2, "0"));
+  return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+}
+
+function contentTypeFromFileName(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".heic")) return "image/heic";
+  if (lower.endsWith(".heif")) return "image/heif";
+  return "image/jpeg";
 }
 
 export function guestGallery(slug: string, accessToken: string) {

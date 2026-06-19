@@ -6,10 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -39,7 +42,19 @@ type Server struct {
 }
 
 func New(service *application.Service, cfg config.Config, log *slog.Logger) http.Handler {
-	s := &Server{service: service, cfg: cfg, log: log, limits: newRateLimiter(), trustedProxies: parseTrustedProxies(cfg.TrustedProxies)}
+	handler, err := NewWithError(service, cfg, log)
+	if err != nil {
+		panic(err)
+	}
+	return handler
+}
+
+func NewWithError(service *application.Service, cfg config.Config, log *slog.Logger) (http.Handler, error) {
+	trustedProxies, err := parseTrustedProxies(cfg.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
+	s := &Server{service: service, cfg: cfg, log: log, limits: newRateLimiter(), trustedProxies: trustedProxies}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{AllowedOrigins: cfg.CORSOrigins, AllowOriginFunc: allowDevOrigin(cfg), AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}, AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "Idempotency-Key", adminCSRFHeader, guestDeviceHeader}, AllowCredentials: true, MaxAge: 300}))
@@ -47,7 +62,6 @@ func New(service *application.Service, cfg config.Config, log *slog.Logger) http
 		writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 	})
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/events", s.createEvent)
 		r.Route("/admin", func(r chi.Router) {
 			r.With(s.limit("admin-login", 8, 15*time.Minute)).Post("/login", s.adminLogin)
 			r.With(s.requireAdmin).Post("/logout", s.adminLogout)
@@ -72,10 +86,10 @@ func New(service *application.Service, cfg config.Config, log *slog.Logger) http
 		})
 		r.With(s.limit("guest-join", 40, time.Minute)).Post("/guest/{slug}/join", s.joinGuest)
 		r.With(s.limit("guest-presign", 30, time.Minute)).Post("/guest/{slug}/uploads/presign", s.presignUpload)
-		r.Post("/guest/{slug}/photos", s.registerPhoto)
+		r.With(s.limit("guest-register-photo", 60, time.Minute)).Post("/guest/{slug}/photos", s.registerPhoto)
 		r.Get("/gallery/{slug}", s.gallery)
 	})
-	return r
+	return r, nil
 }
 
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
@@ -118,27 +132,6 @@ func allowDevOrigin(cfg config.Config) func(r *http.Request, origin string) bool
 		ip := net.ParseIP(host)
 		return ip != nil && ip.IsPrivate()
 	}
-}
-
-func (s *Server) createEvent(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.AppEnv == "production" && s.cfg.AdminCreateToken == "" {
-		writeError(w, domain.ErrUnauthorized)
-		return
-	}
-	if s.cfg.AdminCreateToken != "" && tokenFrom("", r) != s.cfg.AdminCreateToken {
-		writeError(w, domain.ErrUnauthorized)
-		return
-	}
-	var in application.CreateEventInput
-	if !decode(w, r, &in) {
-		return
-	}
-	out, err := s.service.CreateEvent(r.Context(), in)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusCreated, out)
 }
 
 func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
@@ -233,11 +226,27 @@ func (s *Server) adminEventPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminDownloadPhotos(w http.ResponseWriter, r *http.Request) {
+	tmp, err := os.CreateTemp("", "oneshotonenight-photos-*.zip")
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+	}()
+	if _, err := s.service.AdminPhotoArchive(r.Context(), chi.URLParam(r, "eventID"), tmp); err != nil {
+		s.log.Error("photo archive failed", "event_id", chi.URLParam(r, "eventID"), "error", err)
+		writeError(w, err)
+		return
+	}
+	if _, err := tmp.Seek(0, 0); err != nil {
+		writeError(w, err)
+		return
+	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="event-photos.zip"`)
-	if _, err := s.service.AdminPhotoArchive(r.Context(), chi.URLParam(r, "eventID"), w); err != nil {
-		s.log.Error("photo archive failed", "event_id", chi.URLParam(r, "eventID"), "error", err)
-	}
+	http.ServeContent(w, r, "event-photos.zip", time.Now(), tmp)
 }
 
 func (s *Server) adminEventGuests(w http.ResponseWriter, r *http.Request) {
@@ -383,7 +392,7 @@ func (s *Server) registerPhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) gallery(w http.ResponseWriter, r *http.Request) {
-	event, photos, err := s.service.Gallery(r.Context(), chi.URLParam(r, "slug"), tokenFrom("", r), false)
+	event, photos, err := s.service.Gallery(r.Context(), chi.URLParam(r, "slug"), tokenFrom("", r))
 	if err != nil {
 		writeError(w, err)
 		return
@@ -394,7 +403,13 @@ func (s *Server) gallery(w http.ResponseWriter, r *http.Request) {
 func decode(w http.ResponseWriter, r *http.Request, out any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(out); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(out); err != nil {
+		writeError(w, domain.ErrValidation)
+		return false
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		writeError(w, domain.ErrValidation)
 		return false
 	}
@@ -410,21 +425,22 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 func writeError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
 	code := "internal_error"
+	message := "internal server error"
 	switch {
 	case errors.Is(err, domain.ErrValidation):
-		status, code = http.StatusBadRequest, "validation_error"
+		status, code, message = http.StatusBadRequest, "validation_error", "invalid request"
 	case errors.Is(err, domain.ErrUnauthorized):
-		status, code = http.StatusUnauthorized, "unauthorized"
+		status, code, message = http.StatusUnauthorized, "unauthorized", "unauthorized"
 	case errors.Is(err, domain.ErrForbidden), errors.Is(err, domain.ErrEventLocked), errors.Is(err, domain.ErrEventNotStarted), errors.Is(err, domain.ErrEventEnded), errors.Is(err, domain.ErrEventPaused), errors.Is(err, domain.ErrRevealNotReached):
-		status, code = http.StatusForbidden, err.Error()
+		status, code, message = http.StatusForbidden, err.Error(), err.Error()
 	case errors.Is(err, domain.ErrNotFound):
-		status, code = http.StatusNotFound, "not_found"
+		status, code, message = http.StatusNotFound, "not_found", "not found"
 	case errors.Is(err, domain.ErrRateLimited):
-		status, code = http.StatusTooManyRequests, "rate_limited"
+		status, code, message = http.StatusTooManyRequests, "rate_limited", "rate limited"
 	case errors.Is(err, domain.ErrUploadLimit), errors.Is(err, domain.ErrGuestLimit), errors.Is(err, domain.ErrDuplicateRequest):
-		status, code = http.StatusConflict, err.Error()
+		status, code, message = http.StatusConflict, err.Error(), err.Error()
 	}
-	writeJSON(w, status, map[string]string{"error": code, "message": err.Error()})
+	writeJSON(w, status, map[string]string{"error": code, "message": message})
 }
 
 func cookieValue(r *http.Request, name string) string {
@@ -505,7 +521,7 @@ func (s *Server) trustsRemote(ip net.IP) bool {
 	return false
 }
 
-func parseTrustedProxies(values []string) []*net.IPNet {
+func parseTrustedProxies(values []string) ([]*net.IPNet, error) {
 	out := make([]*net.IPNet, 0, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)
@@ -515,7 +531,7 @@ func parseTrustedProxies(values []string) []*net.IPNet {
 		if !strings.Contains(value, "/") {
 			ip := net.ParseIP(value)
 			if ip == nil {
-				continue
+				return nil, fmt.Errorf("invalid trusted proxy %q", value)
 			}
 			bits := 32
 			if ip.To4() == nil {
@@ -525,11 +541,12 @@ func parseTrustedProxies(values []string) []*net.IPNet {
 			continue
 		}
 		_, network, err := net.ParseCIDR(value)
-		if err == nil {
-			out = append(out, network)
+		if err != nil {
+			return nil, fmt.Errorf("invalid trusted proxy CIDR %q", value)
 		}
+		out = append(out, network)
 	}
-	return out
+	return out, nil
 }
 
 func validCSRF(r *http.Request) bool {

@@ -18,7 +18,6 @@ type Config struct {
 	RedisPassword      string
 	RedisDB            int
 	TokenPepper        string
-	AdminCreateToken   string
 	AdminPassword      string
 	AdminPasswordHash  string
 	AdminSessionTTL    time.Duration
@@ -46,7 +45,6 @@ func Load() Config {
 		RedisPassword:      get("REDIS_PASSWORD", ""),
 		RedisDB:            getInt("REDIS_DB", 0),
 		TokenPepper:        get("TOKEN_PEPPER", "dev-pepper-change-me"),
-		AdminCreateToken:   get("ADMIN_CREATE_TOKEN", ""),
 		AdminPassword:      get("ADMIN_PASSWORD", "admin"),
 		AdminPasswordHash:  get("ADMIN_PASSWORD_HASH", ""),
 		AdminSessionTTL:    time.Duration(getInt("ADMIN_SESSION_TTL_HOURS", 12)) * time.Hour,
