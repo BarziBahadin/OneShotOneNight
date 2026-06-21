@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "@builder.io/html-to-figma": "^0.0.3",
-    "puppeteer": "^25.1.0"
-  }
-}

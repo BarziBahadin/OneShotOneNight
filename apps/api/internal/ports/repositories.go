@@ -51,14 +51,20 @@ type AdminSessionRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type RateLimitRepository interface {
+	Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
+}
+
 type ObjectInfo struct {
 	ContentType string
 	SizeBytes   int64
 }
 
 type ObjectStorage interface {
-	PresignPut(ctx context.Context, objectKey, contentType string, expires time.Duration) (string, error)
+	PresignPost(ctx context.Context, objectKey, contentType string, maxBytes int64, expires time.Duration) (string, map[string]string, error)
 	Head(ctx context.Context, objectKey string) (*ObjectInfo, error)
 	Open(ctx context.Context, objectKey string) (io.ReadCloser, error)
 	PublicURL(ctx context.Context, objectKey string) (string, error)
+	Promote(ctx context.Context, sourceKey, destinationKey string) error
+	Delete(ctx context.Context, objectKey string) error
 }

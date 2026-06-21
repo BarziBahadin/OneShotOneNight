@@ -60,7 +60,7 @@ function localBackend(rootEnv: Record<string, string>): Plugin {
 
       api = spawn("go", ["run", "./cmd/api"], {
         cwd: apiRoot,
-        env: { ...process.env, ...rootEnv },
+        env: { ...rootEnv, ...process.env },
         stdio: "inherit"
       });
 

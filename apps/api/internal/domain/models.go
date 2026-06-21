@@ -42,6 +42,7 @@ type Event struct {
 	Description             string      `json:"description"`
 	GuestURL                string      `json:"-"`
 	AccessTokenHash         string      `json:"-"`
+	AccessTokenVersion      string      `json:"-"`
 	OrganizerTokenHash      string      `json:"-"`
 	Mode                    EventMode   `json:"mode"`
 	Status                  EventStatus `json:"status"`

@@ -51,11 +51,9 @@ If Vite is already running, `./dev` prints the current local and network URLs in
 - Local health check: `http://localhost:3000/healthz`
 - Phone/LAN URL: printed by Vite as `Network: http://<your-ip>:3000/`
 
-Default development admin password:
-
-```text
-admin
-```
+`./dev` generates persistent random development credentials in the ignored,
+mode-`0600` `.dev-secrets` file and prints the current development admin
+password when it starts. Delete `.dev-secrets` to rotate all local credentials.
 
 Guest links and QR codes use the machine’s current LAN IP, for example:
 
@@ -79,6 +77,8 @@ CORS_ORIGINS=https://your-domain.com
 COOKIE_SECURE=true
 ADMIN_PASSWORD_HASH=$2b$...
 TOKEN_PEPPER=<long-random-secret>
+REDIS_PASSWORD=<long-random-secret>
+REDIS_TLS=true
 S3_ACCESS_KEY=<production-access-key>
 S3_SECRET_KEY=<production-secret-key>
 ```
@@ -165,5 +165,5 @@ The API keeps domain logic independent of Redis and S3-compatible storage. Redis
 
 Image binaries upload directly to object storage through presigned URLs. The API stores metadata and object keys, and streams ZIP downloads from object storage for hosts.
 
-Guest identity never uses MAC addresses or invasive fingerprinting. Guests receive a cryptographically random token in an HttpOnly cookie; the server stores only a peppered hash.
+Guest identity never uses MAC addresses or invasive fingerprinting. Guests receive a cryptographically random token in an HttpOnly cookie; the server stores only a peppered hash. Invitation capabilities are exchanged for that cookie and removed from the browser address bar. Redis stores a non-secret rotation version instead of the plaintext invitation token.
 # OneShotOneNight

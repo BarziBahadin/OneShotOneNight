@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ type Config struct {
 	DataBackend        string
 	RedisAddr          string
 	RedisPassword      string
+	RedisTLS           bool
 	RedisDB            int
 	TokenPepper        string
 	AdminPassword      string
@@ -33,32 +35,66 @@ type Config struct {
 	MaxUploadBytes     int64
 }
 
-func Load() Config {
+func Load() (Config, error) {
+	redisDB, err := getInt("REDIS_DB", 0)
+	if err != nil {
+		return Config{}, err
+	}
+	adminTTLHours, err := getInt("ADMIN_SESSION_TTL_HOURS", 12)
+	if err != nil {
+		return Config{}, err
+	}
+	guestTTLHours, err := getInt("GUEST_COOKIE_TTL_HOURS", 720)
+	if err != nil {
+		return Config{}, err
+	}
+	maxUploadBytes, err := getInt("MAX_UPLOAD_BYTES", 10485760)
+	if err != nil {
+		return Config{}, err
+	}
+	redisTLS, err := getBool("REDIS_TLS", false)
+	if err != nil {
+		return Config{}, err
+	}
+	disableGuestTokens, err := getBool("DISABLE_GUEST_TOKENS", false)
+	if err != nil {
+		return Config{}, err
+	}
+	cookieSecure, err := getBool("COOKIE_SECURE", false)
+	if err != nil {
+		return Config{}, err
+	}
+	s3PathStyle, err := getBool("S3_USE_PATH_STYLE", true)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		AppEnv:             get("APP_ENV", "development"),
-		HTTPAddr:           get("HTTP_ADDR", ":8080"),
+		HTTPAddr:           get("HTTP_ADDR", "127.0.0.1:8080"),
 		PublicWebURL:       get("PUBLIC_WEB_URL", "http://localhost:3000"),
 		CORSOrigins:        split(get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")),
 		TrustedProxies:     split(get("TRUSTED_PROXIES", "")),
 		DataBackend:        get("DATA_BACKEND", "redis"),
 		RedisAddr:          get("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:      get("REDIS_PASSWORD", ""),
-		RedisDB:            getInt("REDIS_DB", 0),
-		TokenPepper:        get("TOKEN_PEPPER", "dev-pepper-change-me"),
-		AdminPassword:      get("ADMIN_PASSWORD", "admin"),
+		RedisTLS:           redisTLS,
+		RedisDB:            redisDB,
+		TokenPepper:        get("TOKEN_PEPPER", ""),
+		AdminPassword:      get("ADMIN_PASSWORD", ""),
 		AdminPasswordHash:  get("ADMIN_PASSWORD_HASH", ""),
-		AdminSessionTTL:    time.Duration(getInt("ADMIN_SESSION_TTL_HOURS", 12)) * time.Hour,
-		DisableGuestTokens: getBool("DISABLE_GUEST_TOKENS", false),
-		CookieSecure:       getBool("COOKIE_SECURE", false),
-		GuestCookieTTL:     time.Duration(getInt("GUEST_COOKIE_TTL_HOURS", 720)) * time.Hour,
+		AdminSessionTTL:    time.Duration(adminTTLHours) * time.Hour,
+		DisableGuestTokens: disableGuestTokens,
+		CookieSecure:       cookieSecure,
+		GuestCookieTTL:     time.Duration(guestTTLHours) * time.Hour,
 		S3Endpoint:         get("S3_ENDPOINT", "http://localhost:9000"),
 		S3Region:           get("S3_REGION", "us-east-1"),
 		S3Bucket:           get("S3_BUCKET", "oneshotonenight"),
-		S3AccessKey:        get("S3_ACCESS_KEY", "minioadmin"),
-		S3SecretKey:        get("S3_SECRET_KEY", "minioadmin"),
-		S3UsePathStyle:     getBool("S3_USE_PATH_STYLE", true),
-		MaxUploadBytes:     int64(getInt("MAX_UPLOAD_BYTES", 10485760)),
-	}
+		S3AccessKey:        get("S3_ACCESS_KEY", ""),
+		S3SecretKey:        get("S3_SECRET_KEY", ""),
+		S3UsePathStyle:     s3PathStyle,
+		MaxUploadBytes:     int64(maxUploadBytes),
+	}, nil
 }
 
 func get(key, fallback string) string {
@@ -68,20 +104,31 @@ func get(key, fallback string) string {
 	return fallback
 }
 
-func getInt(key string, fallback int) int {
-	v, err := strconv.Atoi(get(key, ""))
-	if err != nil {
-		return fallback
+func getInt(key string, fallback int) (int, error) {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback, nil
 	}
-	return v
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
+	}
+	return v, nil
 }
 
-func getBool(key string, fallback bool) bool {
-	v := get(key, "")
-	if v == "" {
-		return fallback
+func getBool(key string, fallback bool) (bool, error) {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if raw == "" {
+		return fallback, nil
 	}
-	return v == "true" || v == "1"
+	switch raw {
+	case "true", "1":
+		return true, nil
+	case "false", "0":
+		return false, nil
+	default:
+		return false, fmt.Errorf("%s must be true, false, 1, or 0", key)
+	}
 }
 
 func split(v string) []string {

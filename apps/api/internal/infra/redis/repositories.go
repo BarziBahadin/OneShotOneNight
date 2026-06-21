@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"time"
@@ -21,6 +22,7 @@ type PhotoRepo struct{ store *Store }
 type IdempotencyRepo struct{ store *Store }
 type UploadIntentRepo struct{ store *Store }
 type AdminSessionRepo struct{ store *Store }
+type RateLimitRepo struct{ store *Store }
 
 type storedEvent struct {
 	ID                      string             `json:"id"`
@@ -29,6 +31,7 @@ type storedEvent struct {
 	Description             string             `json:"description"`
 	GuestURL                string             `json:"guest_url"`
 	AccessTokenHash         string             `json:"access_token_hash"`
+	AccessTokenVersion      string             `json:"access_token_version,omitempty"`
 	OrganizerTokenHash      string             `json:"organizer_token_hash"`
 	Mode                    domain.EventMode   `json:"mode"`
 	Status                  domain.EventStatus `json:"status"`
@@ -46,8 +49,12 @@ type storedEvent struct {
 	UpdatedAt               time.Time          `json:"updated_at"`
 }
 
-func NewClient(addr, password string, db int) *goredis.Client {
-	return goredis.NewClient(&goredis.Options{Addr: addr, Password: password, DB: db})
+func NewClient(addr, password string, db int, useTLS bool) *goredis.Client {
+	options := &goredis.Options{Addr: addr, Password: password, DB: db}
+	if useTLS {
+		options.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+	return goredis.NewClient(options)
 }
 
 func NewStore(client *goredis.Client) *Store { return &Store{client: client} }
@@ -59,6 +66,23 @@ func (s *Store) Idempotency() *IdempotencyRepo {
 }
 func (s *Store) Uploads() *UploadIntentRepo       { return &UploadIntentRepo{store: s} }
 func (s *Store) AdminSessions() *AdminSessionRepo { return &AdminSessionRepo{store: s} }
+func (s *Store) RateLimits() *RateLimitRepo       { return &RateLimitRepo{store: s} }
+
+var rateLimitScript = goredis.NewScript(`
+local count = redis.call("INCR", KEYS[1])
+if count == 1 then
+  redis.call("PEXPIRE", KEYS[1], ARGV[1])
+end
+return count
+`)
+
+func (r *RateLimitRepo) Allow(ctx context.Context, limitKey string, limit int, window time.Duration) (bool, error) {
+	count, err := rateLimitScript.Run(ctx, r.store.client, []string{key("rate_limit", limitKey)}, window.Milliseconds()).Int64()
+	if err != nil {
+		return false, err
+	}
+	return count <= int64(limit), nil
+}
 
 func (r *EventRepo) Create(ctx context.Context, event *domain.Event) error {
 	b, _ := json.Marshal(storedEventFromDomain(event))
@@ -156,7 +180,7 @@ func (r *EventRepo) Delete(ctx context.Context, id string) error {
 func storedEventFromDomain(event *domain.Event) storedEvent {
 	return storedEvent{
 		ID: event.ID, Slug: event.Slug, Name: event.Name, Description: event.Description, GuestURL: event.GuestURL,
-		AccessTokenHash: event.AccessTokenHash, OrganizerTokenHash: event.OrganizerTokenHash,
+		AccessTokenHash: event.AccessTokenHash, AccessTokenVersion: event.AccessTokenVersion, OrganizerTokenHash: event.OrganizerTokenHash,
 		Mode: event.Mode, Status: event.Status, StartsAt: event.StartsAt, EndsAt: event.EndsAt,
 		RevealAt: event.RevealAt, MaxGuests: event.MaxGuests, MaxPhotosPerGuest: event.MaxPhotosPerGuest,
 		AllowGalleryUploads: event.AllowGalleryUploads, PreferCameraCapture: event.PreferCameraCapture,
@@ -167,7 +191,7 @@ func storedEventFromDomain(event *domain.Event) storedEvent {
 func (event storedEvent) toDomain() *domain.Event {
 	return &domain.Event{
 		ID: event.ID, Slug: event.Slug, Name: event.Name, Description: event.Description, GuestURL: event.GuestURL,
-		AccessTokenHash: event.AccessTokenHash, OrganizerTokenHash: event.OrganizerTokenHash,
+		AccessTokenHash: event.AccessTokenHash, AccessTokenVersion: event.AccessTokenVersion, OrganizerTokenHash: event.OrganizerTokenHash,
 		Mode: event.Mode, Status: event.Status, StartsAt: event.StartsAt, EndsAt: event.EndsAt,
 		RevealAt: event.RevealAt, MaxGuests: event.MaxGuests, MaxPhotosPerGuest: event.MaxPhotosPerGuest,
 		AllowGalleryUploads: event.AllowGalleryUploads, PreferCameraCapture: event.PreferCameraCapture,

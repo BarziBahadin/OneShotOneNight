@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestClientKeyIgnoresForwardedHeadersFromUntrustedRemote(t *testing.T) {
@@ -103,5 +105,39 @@ func TestWriteErrorDoesNotExposeInternalErrorText(t *testing.T) {
 	}
 	if strings.Contains(rec.Body.String(), "redis password") {
 		t.Fatalf("internal error leaked to client: %s", rec.Body.String())
+	}
+}
+
+type testRateLimits struct {
+	allowed bool
+	calls   int
+}
+
+func (l *testRateLimits) Allow(context.Context, string, int, time.Duration) (bool, error) {
+	l.calls++
+	return l.allowed, nil
+}
+
+func TestRateLimitMiddlewareUsesSharedRepository(t *testing.T) {
+	limits := &testRateLimits{allowed: false}
+	server := &Server{limits: limits}
+	handler := server.limit("login", 1, time.Minute)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("blocked request reached handler")
+	}))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+	if recorder.Code != http.StatusTooManyRequests || limits.calls != 1 {
+		t.Fatalf("got status %d and %d calls", recorder.Code, limits.calls)
+	}
+}
+
+func TestSecurityHeadersPreventCachingAndReferrerLeaks(t *testing.T) {
+	handler := securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	}))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/admin/events", nil))
+	if recorder.Header().Get("Cache-Control") != "no-store" || recorder.Header().Get("Referrer-Policy") != "no-referrer" || recorder.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("missing security headers: %#v", recorder.Header())
 	}
 }

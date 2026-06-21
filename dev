@@ -37,16 +37,44 @@ if [[ -f "$ROOT_DIR/.env" ]]; then
 fi
 set +a
 
+DEV_SECRETS="$ROOT_DIR/.dev-secrets"
+if [[ ! -f "$DEV_SECRETS" ]]; then
+  umask 077
+  admin_password="$(openssl rand -hex 16)"
+  token_pepper="$(openssl rand -hex 32)"
+  redis_password="$(openssl rand -hex 32)"
+  s3_access_key="dev$(openssl rand -hex 12)"
+  s3_secret_key="$(openssl rand -hex 32)"
+  {
+    echo "ADMIN_PASSWORD=$admin_password"
+    echo "TOKEN_PEPPER=$token_pepper"
+    echo "REDIS_PASSWORD=$redis_password"
+    echo "S3_ACCESS_KEY=$s3_access_key"
+    echo "S3_SECRET_KEY=$s3_secret_key"
+  } > "$DEV_SECRETS"
+fi
+set -a
+source "$DEV_SECRETS"
+set +a
+
 LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
 if [[ -z "$LAN_IP" ]] && command -v hostname >/dev/null 2>&1; then
   LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 fi
 LAN_IP="${LAN_IP:-localhost}"
 
+export MINIO_BIND_IP="$LAN_IP"
+export S3_ENDPOINT="http://$LAN_IP:9000"
+export HTTP_ADDR="127.0.0.1:8080"
+
 if [[ -z "${PUBLIC_WEB_URL:-}" || "$PUBLIC_WEB_URL" == *"localhost"* || "$PUBLIC_WEB_URL" == *"127.0.0.1"* ]]; then
   export PUBLIC_WEB_URL="http://$LAN_IP:3000"
 fi
 export VITE_PUBLIC_WEB_URL="$PUBLIC_WEB_URL"
+
+export MINIO_CORS_ALLOW_ORIGIN="http://localhost:3000,http://$LAN_IP:3000"
+
+echo "Development admin password: $ADMIN_PASSWORD"
 
 cd "$WEB_DIR"
 "$VITE"

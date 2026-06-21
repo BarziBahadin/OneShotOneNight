@@ -11,10 +11,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -24,40 +22,46 @@ import (
 	"oneshotonenight/api/internal/application"
 	"oneshotonenight/api/internal/domain"
 	"oneshotonenight/api/internal/infra/config"
+	"oneshotonenight/api/internal/ports"
 )
 
 const guestCookieName = "event_guest_token"
 const adminCookieName = "admin_session"
 const adminCSRFName = "admin_csrf"
 const adminCSRFHeader = "X-CSRF-Token"
-const guestDeviceHeader = "X-Guest-Device-Id"
 const maxJSONBodyBytes = 1 << 20
 
 type Server struct {
 	service        *application.Service
 	cfg            config.Config
 	log            *slog.Logger
-	limits         *rateLimiter
+	limits         ports.RateLimitRepository
 	trustedProxies []*net.IPNet
 }
 
-func New(service *application.Service, cfg config.Config, log *slog.Logger) http.Handler {
-	handler, err := NewWithError(service, cfg, log)
+func New(service *application.Service, cfg config.Config, log *slog.Logger, limits ports.RateLimitRepository) http.Handler {
+	handler, err := NewWithError(service, cfg, log, limits)
 	if err != nil {
 		panic(err)
 	}
 	return handler
 }
 
-func NewWithError(service *application.Service, cfg config.Config, log *slog.Logger) (http.Handler, error) {
+func NewWithError(service *application.Service, cfg config.Config, log *slog.Logger, limits ports.RateLimitRepository) (http.Handler, error) {
 	trustedProxies, err := parseTrustedProxies(cfg.TrustedProxies)
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{service: service, cfg: cfg, log: log, limits: newRateLimiter(), trustedProxies: trustedProxies}
+	if limits == nil {
+		return nil, errors.New("rate limit repository is required")
+	}
+	s := &Server{service: service, cfg: cfg, log: log, limits: limits, trustedProxies: trustedProxies}
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
-	r.Use(cors.Handler(cors.Options{AllowedOrigins: cfg.CORSOrigins, AllowOriginFunc: allowDevOrigin(cfg), AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}, AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "Idempotency-Key", adminCSRFHeader, guestDeviceHeader}, AllowCredentials: true, MaxAge: 300}))
+	// Do not use chi's RealIP middleware here: it trusts forwarded headers from
+	// any caller. clientKey applies the configured trusted-proxy allowlist.
+	r.Use(middleware.RequestID, middleware.Recoverer)
+	r.Use(securityHeaders)
+	r.Use(cors.Handler(cors.Options{AllowedOrigins: cfg.CORSOrigins, AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}, AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "Idempotency-Key", adminCSRFHeader}, AllowCredentials: true, MaxAge: 300}))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 	})
@@ -78,7 +82,7 @@ func NewWithError(service *application.Service, cfg config.Config, log *slog.Log
 				r.Post("/events/{eventID}/open", s.adminOpenEvent)
 				r.Post("/events/{eventID}/lock", s.adminLockEvent)
 				r.Get("/events/{eventID}/photos", s.adminEventPhotos)
-				r.Get("/events/{eventID}/photos/download", s.adminDownloadPhotos)
+				r.With(s.limit("admin-photo-download", 5, time.Minute)).Get("/events/{eventID}/photos/download", s.adminDownloadPhotos)
 				r.Patch("/events/{eventID}/photos/{photoID}", s.adminModeratePhoto)
 				r.Get("/events/{eventID}/guests", s.adminEventGuests)
 				r.Patch("/events/{eventID}/guests/{guestID}", s.adminUpdateGuest)
@@ -87,9 +91,21 @@ func NewWithError(service *application.Service, cfg config.Config, log *slog.Log
 		r.With(s.limit("guest-join", 40, time.Minute)).Post("/guest/{slug}/join", s.joinGuest)
 		r.With(s.limit("guest-presign", 30, time.Minute)).Post("/guest/{slug}/uploads/presign", s.presignUpload)
 		r.With(s.limit("guest-register-photo", 60, time.Minute)).Post("/guest/{slug}/photos", s.registerPhoto)
-		r.Get("/gallery/{slug}", s.gallery)
+		r.With(s.limit("guest-gallery", 120, time.Minute)).Get("/gallery/{slug}", s.gallery)
 	})
 	return r, nil
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Pragma", "no-cache")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
@@ -104,34 +120,6 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func allowDevOrigin(cfg config.Config) func(r *http.Request, origin string) bool {
-	allowed := map[string]bool{}
-	for _, origin := range cfg.CORSOrigins {
-		allowed[origin] = true
-	}
-	return func(r *http.Request, origin string) bool {
-		if allowed[origin] {
-			return true
-		}
-		if cfg.AppEnv != "development" {
-			return false
-		}
-		parsed, err := url.Parse(origin)
-		if err != nil {
-			return false
-		}
-		host := parsed.Hostname()
-		if parsed.Scheme != "http" {
-			return false
-		}
-		if host == "localhost" || host == "127.0.0.1" {
-			return true
-		}
-		ip := net.ParseIP(host)
-		return ip != nil && ip.IsPrivate()
-	}
 }
 
 func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
@@ -354,7 +342,7 @@ func (s *Server) joinGuest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: guestCookieName, Value: token, Path: "/api/v1/guest", HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode, Expires: time.Now().Add(s.cfg.GuestCookieTTL)})
+	http.SetCookie(w, &http.Cookie{Name: guestCookieName, Value: token, Path: "/api/v1", HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode, Expires: time.Now().Add(s.cfg.GuestCookieTTL)})
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -392,7 +380,7 @@ func (s *Server) registerPhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) gallery(w http.ResponseWriter, r *http.Request) {
-	event, photos, err := s.service.Gallery(r.Context(), chi.URLParam(r, "slug"), tokenFrom("", r))
+	event, photos, err := s.service.Gallery(r.Context(), chi.URLParam(r, "slug"), tokenFrom("", r), guestDeviceToken(r))
 	if err != nil {
 		writeError(w, err)
 		return
@@ -452,9 +440,6 @@ func cookieValue(r *http.Request, name string) string {
 }
 
 func guestDeviceToken(r *http.Request) string {
-	if header := strings.TrimSpace(r.Header.Get(guestDeviceHeader)); header != "" {
-		return header
-	}
 	return cookieValue(r, guestCookieName)
 }
 
@@ -470,7 +455,13 @@ func (s *Server) limit(scope string, max int, window time.Duration) func(http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			key := scope + ":" + s.clientKey(r)
-			if !s.limits.allow(key, max, window) {
+			allowed, err := s.limits.Allow(r.Context(), key, max, window)
+			if err != nil {
+				s.log.Error("rate limit check failed", "scope", scope, "error", err)
+				writeError(w, err)
+				return
+			}
+			if !allowed {
 				writeError(w, domain.ErrRateLimited)
 				return
 			}
@@ -568,43 +559,4 @@ func randomCookieToken() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
-}
-
-type rateLimiter struct {
-	mu      sync.Mutex
-	buckets map[string]rateBucket
-}
-
-type rateBucket struct {
-	count     int
-	resetAt   time.Time
-	updatedAt time.Time
-}
-
-func newRateLimiter() *rateLimiter {
-	return &rateLimiter{buckets: map[string]rateBucket{}}
-}
-
-func (l *rateLimiter) allow(key string, max int, window time.Duration) bool {
-	now := time.Now()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	bucket := l.buckets[key]
-	if now.After(bucket.resetAt) {
-		bucket = rateBucket{resetAt: now.Add(window)}
-	}
-	bucket.count++
-	bucket.updatedAt = now
-	l.buckets[key] = bucket
-
-	if len(l.buckets) > 10000 {
-		for key, bucket := range l.buckets {
-			if now.After(bucket.resetAt) || now.Sub(bucket.updatedAt) > window*2 {
-				delete(l.buckets, key)
-			}
-		}
-	}
-
-	return bucket.count <= max
 }

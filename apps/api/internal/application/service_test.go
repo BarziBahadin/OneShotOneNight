@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,94 @@ func TestCreateEventDefaultsToAutoApproval(t *testing.T) {
 	if !out.Event.AllowGalleryUploads || !out.Event.PreferCameraCapture {
 		t.Fatal("new events should default to gallery uploads and camera-first capture")
 	}
+	if out.Event.GuestURL != "" || !strings.Contains(out.GuestURL, "?t=") {
+		t.Fatal("plaintext guest capability must only be returned in the one-time output")
+	}
+	detail, err := service.AdminEvent(context.Background(), out.Event.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.GuestURL != out.GuestURL {
+		t.Fatal("admin guest URL should be derived from the non-secret token version")
+	}
+}
+
+func TestGuestCookieIdentityAuthorizesWithoutCapabilityToken(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	event.RevealAt = time.Now().Add(-time.Minute)
+	event.AccessTokenHash = service.HashToken("guest-token")
+	repos.events.items[event.ID] = event
+
+	joined, deviceToken, err := service.JoinGuest(context.Background(), event.Slug, "guest-token", "", "Guest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if joined.Guest.DisplayName != "Guest" {
+		t.Fatal("guest was not created")
+	}
+	if _, _, err := service.Gallery(context.Background(), event.Slug, "", deviceToken); err != nil {
+		t.Fatalf("cookie identity did not authorize gallery: %v", err)
+	}
+	if _, err := service.PresignUpload(context.Background(), PresignInput{
+		EventSlug: event.Slug, DeviceToken: deviceToken, FileName: "photo.jpg",
+		ContentType: "image/jpeg", SizeBytes: 10, IdempotencyKey: "cookie-session",
+	}); err != nil {
+		t.Fatalf("cookie identity did not authorize upload: %v", err)
+	}
+}
+
+func TestGuestInputsEnforceServerSideLengthLimits(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	event.AccessTokenHash = service.HashToken("guest-token")
+	repos.events.items[event.ID] = event
+
+	_, _, err := service.JoinGuest(context.Background(), event.Slug, "guest-token", "", strings.Repeat("x", maxDisplayNameRunes+1))
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("oversized display name got %v, want validation error", err)
+	}
+	_, err = service.PresignUpload(context.Background(), PresignInput{
+		EventSlug: event.Slug, AccessToken: "guest-token", FileName: "photo.jpg",
+		ContentType: "image/jpeg", SizeBytes: 10,
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("missing idempotency key got %v, want validation error", err)
+	}
+}
+
+func TestLegacyTokenMigrationRemovesPlaintextAndProducesWorkingLink(t *testing.T) {
+	repos := newTestRepos()
+	service := newTestService(repos)
+	event := testEvent(time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	event.GuestURL = "http://example.test/guest/night?t=legacy-plaintext"
+	event.AccessTokenHash = service.HashToken("legacy-plaintext")
+	repos.events.items[event.ID] = event
+
+	count, err := service.MigrateLegacyEventTokens(context.Background())
+	if err != nil || count != 1 {
+		t.Fatalf("migration got count=%d err=%v", count, err)
+	}
+	migratedEvent, err := repos.events.GetByID(context.Background(), event.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if migratedEvent.GuestURL != "" || migratedEvent.AccessTokenVersion == "" {
+		t.Fatal("legacy plaintext URL was not removed")
+	}
+	detail, err := service.AdminEvent(context.Background(), event.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsedToken := strings.Split(detail.GuestURL, "?t=")
+	if len(parsedToken) != 2 {
+		t.Fatal("derived guest link is missing a capability")
+	}
+	if _, _, err := service.JoinGuest(context.Background(), event.Slug, parsedToken[1], "", ""); err != nil {
+		t.Fatalf("derived migrated token was rejected: %v", err)
+	}
 }
 
 func TestAdminLoginAcceptsBcryptPasswordHash(t *testing.T) {
@@ -38,7 +127,7 @@ func TestAdminLoginAcceptsBcryptPasswordHash(t *testing.T) {
 	service := NewService(NewServiceInput{
 		Events: repos.events, Guests: repos.guests, Photos: repos.photos,
 		Idempotency: memoryIdempotency{}, Uploads: repos.uploads, AdminSessions: memoryAdminSessions{items: map[string]*domain.AdminSession{}}, Storage: repos.storage,
-		Pepper: "test-pepper", WebURL: "http://example.test", MaxBytes: 1024,
+		Pepper: "test-pepper", GuestURLBase: "http://example.test", MaxBytes: 1024,
 		AdminPasswordHash: string(hash),
 	})
 
@@ -108,20 +197,22 @@ func TestRegisterPhotoUsesAutoApprovalSetting(t *testing.T) {
 			}
 			repos.uploads.items["photo-1"] = &domain.UploadIntent{
 				PhotoID: "photo-1", EventID: event.ID, GuestID: joined.Guest.ID,
-				ObjectKey: "photo.jpg", ContentType: "image/jpeg", SizeBytes: 10,
+				ObjectKey: "pending/photo.jpg", ContentType: "image/jpeg", SizeBytes: 10,
 				TokenHash: service.HashToken("upload-token"), ExpiresAt: time.Now().Add(time.Hour),
 			}
 
 			photo, _, err := service.RegisterPhoto(context.Background(), RegisterPhotoInput{
 				PhotoID: "photo-1", EventSlug: event.Slug, AccessToken: "guest-token",
-				DeviceToken: rawDeviceToken, ObjectKey: "photo.jpg", ContentType: "image/jpeg",
-				SizeBytes: 10, UploadToken: "upload-token",
+				DeviceToken: rawDeviceToken, UploadToken: "upload-token",
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
 			if photo.Status != tt.want {
 				t.Fatalf("got %s, want %s", photo.Status, tt.want)
+			}
+			if photo.ObjectKey != "photo.jpg" {
+				t.Fatalf("got object key %q, want promoted final key", photo.ObjectKey)
 			}
 		})
 	}
@@ -142,7 +233,7 @@ func TestPresignAllowsOfflineGraceAfterEventEnd(t *testing.T) {
 
 	out, err := service.PresignUpload(context.Background(), PresignInput{
 		EventSlug: "night", AccessToken: "guest-token", DeviceToken: "phone-1",
-		FileName: "photo.jpg", ContentType: "image/jpeg", SizeBytes: 10,
+		FileName: "photo.jpg", ContentType: "image/jpeg", SizeBytes: 10, IdempotencyKey: "request-1",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +253,7 @@ func TestPresignRejectsAfterOfflineGrace(t *testing.T) {
 
 	_, err := service.PresignUpload(context.Background(), PresignInput{
 		EventSlug: "night", AccessToken: "guest-token", DeviceToken: "phone-1",
-		FileName: "photo.jpg", ContentType: "image/jpeg", SizeBytes: 10,
+		FileName: "photo.jpg", ContentType: "image/jpeg", SizeBytes: 10, IdempotencyKey: "request-1",
 	})
 	if !errors.Is(err, domain.ErrEventEnded) {
 		t.Fatalf("got %v, want %v", err, domain.ErrEventEnded)
@@ -180,13 +271,13 @@ func TestGalleryRevealIsIndependentFromApproval(t *testing.T) {
 	repos.events.items[event.ID] = event
 	repos.photos.items["photo-1"] = &domain.Photo{ID: "photo-1", EventID: event.ID, Status: domain.PhotoApproved}
 
-	_, _, err := service.Gallery(context.Background(), event.Slug, "guest-token")
+	_, _, err := service.Gallery(context.Background(), event.Slug, "guest-token", "")
 	if !errors.Is(err, domain.ErrRevealNotReached) {
 		t.Fatalf("got %v, want %v", err, domain.ErrRevealNotReached)
 	}
 
 	event.RevealAt = time.Now().Add(-time.Minute)
-	_, photos, err := service.Gallery(context.Background(), event.Slug, "guest-token")
+	_, photos, err := service.Gallery(context.Background(), event.Slug, "guest-token", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +297,7 @@ func TestGallerySkipsPhotosWithBrokenPublicURL(t *testing.T) {
 	repos.photos.items["photo-2"] = &domain.Photo{ID: "photo-2", EventID: event.ID, ObjectKey: "broken.jpg", Status: domain.PhotoApproved}
 	repos.storage.publicURLErrors = map[string]error{"broken.jpg": errors.New("s3 signing failed")}
 
-	_, photos, err := service.Gallery(context.Background(), event.Slug, "guest-token")
+	_, photos, err := service.Gallery(context.Background(), event.Slug, "guest-token", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +355,7 @@ func newTestService(repos *testRepos) *Service {
 	return NewService(NewServiceInput{
 		Events: repos.events, Guests: repos.guests, Photos: repos.photos,
 		Idempotency: memoryIdempotency{}, Uploads: repos.uploads, Storage: repos.storage,
-		Pepper: "test-pepper", WebURL: "http://example.test", MaxBytes: 1024,
+		Pepper: "test-pepper", GuestURLBase: "http://example.test", MaxBytes: 1024,
 	})
 }
 
@@ -448,8 +539,8 @@ type memoryStorage struct {
 	publicURLErrors map[string]error
 }
 
-func (*memoryStorage) PresignPut(context.Context, string, string, time.Duration) (string, error) {
-	return "http://upload.test", nil
+func (*memoryStorage) PresignPost(context.Context, string, string, int64, time.Duration) (string, map[string]string, error) {
+	return "http://upload.test", map[string]string{"policy": "test"}, nil
 }
 func (*memoryStorage) Head(context.Context, string) (*ports.ObjectInfo, error) {
 	return &ports.ObjectInfo{ContentType: "image/jpeg", SizeBytes: 10}, nil
@@ -463,6 +554,8 @@ func (m *memoryStorage) PublicURL(_ context.Context, objectKey string) (string, 
 	}
 	return "http://image.test/photo.jpg", nil
 }
+func (*memoryStorage) Promote(context.Context, string, string) error { return nil }
+func (*memoryStorage) Delete(context.Context, string) error          { return nil }
 
 type memoryIdempotency struct{}
 

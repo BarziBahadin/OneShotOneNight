@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"path"
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/oklog/ulid/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -27,8 +27,14 @@ import (
 var slugPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
 const (
-	maxArchivePhotos = 1000
-	maxArchiveBytes  = int64(2 << 30)
+	maxArchivePhotos       = 1000
+	maxArchiveBytes        = int64(2 << 30)
+	maxEventNameRunes      = 200
+	maxDescriptionRunes    = 2000
+	maxDisplayNameRunes    = 100
+	maxMessageRunes        = 500
+	maxIdempotencyKeyBytes = 128
+	maxTokenBytes          = 128
 )
 
 type Service struct {
@@ -40,7 +46,6 @@ type Service struct {
 	adminSessions      ports.AdminSessionRepository
 	storage            ports.ObjectStorage
 	pepper             string
-	webURL             string
 	guestURLBase       string
 	maxBytes           int64
 	disableGuestTokens bool
@@ -58,7 +63,6 @@ type NewServiceInput struct {
 	AdminSessions      ports.AdminSessionRepository
 	Storage            ports.ObjectStorage
 	Pepper             string
-	WebURL             string
 	GuestURLBase       string
 	MaxBytes           int64
 	DisableGuestTokens bool
@@ -70,10 +74,10 @@ type NewServiceInput struct {
 func NewService(in NewServiceInput) *Service {
 	return &Service{
 		events: in.Events, guests: in.Guests, photos: in.Photos, idempotency: in.Idempotency, uploads: in.Uploads,
-		adminSessions: in.AdminSessions, storage: in.Storage, pepper: in.Pepper, webURL: strings.TrimRight(in.WebURL, "/"), maxBytes: in.MaxBytes,
+		adminSessions: in.AdminSessions, storage: in.Storage, pepper: in.Pepper, maxBytes: in.MaxBytes,
 		disableGuestTokens: in.DisableGuestTokens,
 		adminPassword:      in.AdminPassword, adminPasswordHash: in.AdminPasswordHash, adminSessionTTL: in.AdminSessionTTL,
-		guestURLBase: strings.TrimRight(firstNonEmpty(in.GuestURLBase, in.WebURL), "/"),
+		guestURLBase: strings.TrimRight(in.GuestURLBase, "/"),
 	}
 }
 
@@ -149,8 +153,16 @@ type RotateEventTokensOutput struct {
 }
 
 func (s *Service) CreateEvent(ctx context.Context, in CreateEventInput) (*CreateEventOutput, error) {
-	if strings.TrimSpace(in.Name) == "" {
+	name := strings.TrimSpace(in.Name)
+	description := strings.TrimSpace(in.Description)
+	if name == "" || utf8.RuneCountInString(name) > maxEventNameRunes || utf8.RuneCountInString(description) > maxDescriptionRunes {
 		return nil, fmt.Errorf("%w: event name is required", domain.ErrValidation)
+	}
+	if in.Mode != "" && !validEventMode(in.Mode) {
+		return nil, domain.ErrValidation
+	}
+	if in.MaxGuests > 10000 || in.MaxPhotosPerGuest > 1000 || in.OfflineUploadGraceHours > 168 {
+		return nil, domain.ErrValidation
 	}
 	if in.MaxPhotosPerGuest <= 0 {
 		in.MaxPhotosPerGuest = 12
@@ -192,17 +204,17 @@ func (s *Service) CreateEvent(ctx context.Context, in CreateEventInput) (*Create
 	if in.PreferCameraCapture != nil {
 		preferCameraCapture = *in.PreferCameraCapture
 	}
-	accessToken, err := randomToken()
+	id := ulid.Make().String()
+	accessTokenVersion, err := randomToken()
 	if err != nil {
 		return nil, err
 	}
-	id := ulid.Make().String()
-	slug := slugify(in.Name) + "-" + strings.ToLower(id[len(id)-6:])
+	accessToken := s.deriveEventAccessToken(id, accessTokenVersion)
+	slug := slugify(name) + "-" + strings.ToLower(id[len(id)-6:])
 	guestURL := fmt.Sprintf("%s/guest/%s?t=%s", s.guestURLBase, slug, accessToken)
 	event := &domain.Event{
-		ID: id, Slug: slug, Name: strings.TrimSpace(in.Name),
-		GuestURL:    guestURL,
-		Description: strings.TrimSpace(in.Description), AccessTokenHash: s.HashToken(accessToken),
+		ID: id, Slug: slug, Name: name,
+		Description: description, AccessTokenHash: s.HashToken(accessToken), AccessTokenVersion: accessTokenVersion,
 		OrganizerTokenHash: "", Mode: in.Mode, Status: domain.EventOpen,
 		StartsAt: in.StartsAt.UTC(), EndsAt: in.EndsAt.UTC(), RevealAt: in.RevealAt.UTC(),
 		MaxGuests: in.MaxGuests, MaxPhotosPerGuest: in.MaxPhotosPerGuest,
@@ -214,7 +226,7 @@ func (s *Service) CreateEvent(ctx context.Context, in CreateEventInput) (*Create
 	}
 	return &CreateEventOutput{
 		Event: event, AccessToken: accessToken,
-		GuestURL: event.GuestURL,
+		GuestURL: guestURL,
 	}, nil
 }
 
@@ -379,36 +391,8 @@ func (s *Service) AdminEvent(ctx context.Context, eventID string) (*AdminEventDe
 		}
 	}
 	eventResponse := *event
-	eventResponse.GuestURL = s.publicWebURL(event.GuestURL)
+	eventResponse.GuestURL = s.eventGuestURL(event)
 	return &AdminEventDetail{Event: &eventResponse, GuestURL: eventResponse.GuestURL, Guests: guests, Photos: photos, Stats: stats}, nil
-}
-
-func (s *Service) publicWebURL(raw string) string {
-	base := strings.TrimRight(s.webURL, "/")
-	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Path == "" {
-		return raw
-	}
-	if parsed.Path != "" && strings.HasPrefix(parsed.Path, "/guest/") {
-		base = strings.TrimRight(s.guestURLBase, "/")
-	}
-	out := base + parsed.EscapedPath()
-	if parsed.RawQuery != "" {
-		out += "?" + parsed.RawQuery
-	}
-	if parsed.Fragment != "" {
-		out += "#" + parsed.Fragment
-	}
-	return out
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func (s *Service) AdminPhotoArchive(ctx context.Context, eventID string, dst io.Writer) (int, error) {
@@ -487,15 +471,22 @@ func (s *Service) AdminUpdateEvent(ctx context.Context, eventID string, in Updat
 	}
 	if in.Name != nil {
 		name := strings.TrimSpace(*in.Name)
-		if name == "" {
+		if name == "" || utf8.RuneCountInString(name) > maxEventNameRunes {
 			return nil, fmt.Errorf("%w: event name is required", domain.ErrValidation)
 		}
 		event.Name = name
 	}
 	if in.Description != nil {
-		event.Description = strings.TrimSpace(*in.Description)
+		description := strings.TrimSpace(*in.Description)
+		if utf8.RuneCountInString(description) > maxDescriptionRunes {
+			return nil, domain.ErrValidation
+		}
+		event.Description = description
 	}
 	if in.Mode != nil {
+		if !validEventMode(*in.Mode) {
+			return nil, domain.ErrValidation
+		}
 		event.Mode = *in.Mode
 	}
 	if in.Status != nil {
@@ -514,13 +505,13 @@ func (s *Service) AdminUpdateEvent(ctx context.Context, eventID string, in Updat
 		event.RevealAt = in.RevealAt.UTC()
 	}
 	if in.MaxGuests != nil {
-		if *in.MaxGuests <= 0 {
+		if *in.MaxGuests <= 0 || *in.MaxGuests > 10000 {
 			return nil, domain.ErrValidation
 		}
 		event.MaxGuests = *in.MaxGuests
 	}
 	if in.MaxPhotosPerGuest != nil {
-		if *in.MaxPhotosPerGuest <= 0 {
+		if *in.MaxPhotosPerGuest <= 0 || *in.MaxPhotosPerGuest > 1000 {
 			return nil, domain.ErrValidation
 		}
 		event.MaxPhotosPerGuest = *in.MaxPhotosPerGuest
@@ -564,17 +555,20 @@ func (s *Service) AdminRotateEventTokens(ctx context.Context, eventID string) (*
 	if err != nil {
 		return nil, err
 	}
-	accessToken, err := randomToken()
+	accessTokenVersion, err := randomToken()
 	if err != nil {
 		return nil, err
 	}
+	accessToken := s.deriveEventAccessToken(event.ID, accessTokenVersion)
 	event.AccessTokenHash = s.HashToken(accessToken)
+	event.AccessTokenVersion = accessTokenVersion
+	event.GuestURL = ""
 	event.UpdatedAt = time.Now().UTC()
 	if err := s.events.Update(ctx, event); err != nil {
 		return nil, err
 	}
 	eventResponse := *event
-	eventResponse.GuestURL = fmt.Sprintf("%s/guest/%s?t=%s", s.guestURLBase, event.Slug, accessToken)
+	eventResponse.GuestURL = s.eventGuestURL(event)
 	return &RotateEventTokensOutput{Event: &eventResponse, GuestURL: eventResponse.GuestURL, AccessToken: accessToken}, nil
 }
 
@@ -622,12 +616,21 @@ func (s *Service) JoinGuest(ctx context.Context, slug, accessToken, rawDeviceTok
 }
 
 func (s *Service) joinGuest(ctx context.Context, slug, accessToken, rawDeviceToken, displayName string, allowOfflineGrace bool) (*JoinOutput, string, error) {
+	if len(accessToken) > maxTokenBytes || utf8.RuneCountInString(strings.TrimSpace(displayName)) > maxDisplayNameRunes {
+		return nil, "", domain.ErrValidation
+	}
 	event, err := s.events.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, "", err
 	}
 	if !s.disableGuestTokens && !s.tokenMatches(accessToken, event.AccessTokenHash) {
-		return nil, "", domain.ErrUnauthorized
+		if rawDeviceToken == "" {
+			return nil, "", domain.ErrUnauthorized
+		}
+		existing, lookupErr := s.guests.FindByEventAndDeviceToken(ctx, event.ID, s.HashToken(rawDeviceToken))
+		if lookupErr != nil || existing.Status != domain.GuestActive {
+			return nil, "", domain.ErrUnauthorized
+		}
 	}
 	if event.Status != domain.EventOpen {
 		return nil, "", domain.ErrEventPaused
@@ -669,28 +672,30 @@ type PresignInput struct {
 }
 
 type PresignOutput struct {
-	PhotoID        string `json:"photo_id"`
-	ObjectKey      string `json:"object_key"`
-	UploadURL      string `json:"upload_url"`
-	UploadToken    string `json:"upload_token"`
-	RemainingShots int    `json:"remaining_shots"`
+	PhotoID        string            `json:"photo_id"`
+	ObjectKey      string            `json:"object_key"`
+	UploadURL      string            `json:"upload_url"`
+	UploadFields   map[string]string `json:"upload_fields"`
+	UploadToken    string            `json:"upload_token"`
+	RemainingShots int               `json:"remaining_shots"`
 }
 
 func (s *Service) PresignUpload(ctx context.Context, in PresignInput) (*PresignOutput, error) {
+	if in.IdempotencyKey == "" || len(in.IdempotencyKey) > maxIdempotencyKeyBytes || len(in.AccessToken) > maxTokenBytes || len(in.FileName) > 255 {
+		return nil, domain.ErrValidation
+	}
 	if in.SizeBytes <= 0 || in.SizeBytes > s.maxBytes {
 		return nil, fmt.Errorf("%w: file is too large", domain.ErrValidation)
 	}
 	if !allowedImageType(in.ContentType) {
 		return nil, fmt.Errorf("%w: unsupported image type", domain.ErrValidation)
 	}
-	if in.IdempotencyKey != "" {
-		ok, err := s.idempotency.Reserve(ctx, "presign:"+in.EventSlug, in.IdempotencyKey, 15*time.Minute)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, domain.ErrDuplicateRequest
-		}
+	ok, err := s.idempotency.Reserve(ctx, "presign:"+in.EventSlug, in.IdempotencyKey, 15*time.Minute)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, domain.ErrDuplicateRequest
 	}
 	joined, _, err := s.joinGuest(ctx, in.EventSlug, in.AccessToken, in.DeviceToken, "", true)
 	if err != nil {
@@ -703,8 +708,8 @@ func (s *Service) PresignUpload(ctx context.Context, in PresignInput) (*PresignO
 		return nil, domain.ErrUploadLimit
 	}
 	photoID := ulid.Make().String()
-	objectKey := fmt.Sprintf("events/%s/photos/%s/%s", joined.Event.ID, joined.Guest.ID, photoID)
-	url, err := s.storage.PresignPut(ctx, objectKey, in.ContentType, 10*time.Minute)
+	objectKey := fmt.Sprintf("pending/events/%s/photos/%s/%s", joined.Event.ID, joined.Guest.ID, photoID)
+	url, fields, err := s.storage.PresignPost(ctx, objectKey, in.ContentType, in.SizeBytes, 10*time.Minute)
 	if err != nil {
 		return nil, err
 	}
@@ -719,7 +724,7 @@ func (s *Service) PresignUpload(ctx context.Context, in PresignInput) (*PresignO
 	}, 15*time.Minute); err != nil {
 		return nil, err
 	}
-	return &PresignOutput{PhotoID: photoID, ObjectKey: objectKey, UploadURL: url, UploadToken: uploadToken, RemainingShots: remaining(joined.Event, joined.Guest)}, nil
+	return &PresignOutput{PhotoID: photoID, ObjectKey: objectKey, UploadURL: url, UploadFields: fields, UploadToken: uploadToken, RemainingShots: remaining(joined.Event, joined.Guest)}, nil
 }
 
 type RegisterPhotoInput struct {
@@ -727,14 +732,14 @@ type RegisterPhotoInput struct {
 	EventSlug   string `json:"-"`
 	AccessToken string `json:"access_token"`
 	DeviceToken string `json:"-"`
-	ObjectKey   string `json:"object_key"`
-	ContentType string `json:"content_type"`
-	SizeBytes   int64  `json:"size_bytes"`
 	Message     string `json:"message"`
 	UploadToken string `json:"upload_token"`
 }
 
 func (s *Service) RegisterPhoto(ctx context.Context, in RegisterPhotoInput) (*domain.Photo, int, error) {
+	if len(in.AccessToken) > maxTokenBytes || len(in.UploadToken) > maxTokenBytes || utf8.RuneCountInString(strings.TrimSpace(in.Message)) > maxMessageRunes {
+		return nil, 0, domain.ErrValidation
+	}
 	joined, _, err := s.joinGuest(ctx, in.EventSlug, in.AccessToken, in.DeviceToken, "", true)
 	if err != nil {
 		return nil, 0, err
@@ -763,8 +768,17 @@ func (s *Service) RegisterPhoto(ctx context.Context, in RegisterPhotoInput) (*do
 	if intent.EventID != joined.Event.ID || intent.GuestID != joined.Guest.ID {
 		return nil, 0, domain.ErrForbidden
 	}
+	finalObjectKey := strings.TrimPrefix(intent.ObjectKey, "pending/")
+	if finalObjectKey != intent.ObjectKey {
+		if err := s.storage.Promote(ctx, intent.ObjectKey, finalObjectKey); err != nil {
+			return nil, 0, err
+		}
+	}
 	count, err := s.guests.IncrementUploadCount(ctx, joined.Guest.ID, joined.Event.MaxPhotosPerGuest)
 	if err != nil {
+		if finalObjectKey != intent.ObjectKey {
+			_ = s.storage.Delete(ctx, finalObjectKey)
+		}
 		return nil, 0, err
 	}
 	now := time.Now().UTC()
@@ -772,20 +786,35 @@ func (s *Service) RegisterPhoto(ctx context.Context, in RegisterPhotoInput) (*do
 	if joined.Event.AutoApprovePhotos {
 		status = domain.PhotoApproved
 	}
-	photo := &domain.Photo{ID: intent.PhotoID, EventID: joined.Event.ID, GuestID: joined.Guest.ID, ObjectKey: intent.ObjectKey, ContentType: intent.ContentType, SizeBytes: intent.SizeBytes, Message: strings.TrimSpace(in.Message), Status: status, IsDeveloped: galleryAvailable(joined.Event), CreatedAt: now, UpdatedAt: now}
+	photo := &domain.Photo{ID: intent.PhotoID, EventID: joined.Event.ID, GuestID: joined.Guest.ID, ObjectKey: finalObjectKey, ContentType: intent.ContentType, SizeBytes: intent.SizeBytes, Message: strings.TrimSpace(in.Message), Status: status, IsDeveloped: galleryAvailable(joined.Event), CreatedAt: now, UpdatedAt: now}
 	if err := s.photos.Create(ctx, photo); err != nil {
+		if finalObjectKey != intent.ObjectKey {
+			_ = s.storage.Delete(ctx, finalObjectKey)
+		}
 		return nil, 0, err
+	}
+	if finalObjectKey != intent.ObjectKey {
+		_ = s.storage.Delete(ctx, intent.ObjectKey)
 	}
 	return photo, joined.Event.MaxPhotosPerGuest - count, nil
 }
 
-func (s *Service) Gallery(ctx context.Context, slug, accessToken string) (*domain.Event, []domain.Photo, error) {
+func (s *Service) Gallery(ctx context.Context, slug, accessToken, deviceToken string) (*domain.Event, []domain.Photo, error) {
 	event, err := s.events.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, nil, err
 	}
+	if len(accessToken) > maxTokenBytes {
+		return nil, nil, domain.ErrValidation
+	}
 	if !s.disableGuestTokens && !s.tokenMatches(accessToken, event.AccessTokenHash) {
-		return nil, nil, domain.ErrUnauthorized
+		if deviceToken == "" {
+			return nil, nil, domain.ErrUnauthorized
+		}
+		guest, lookupErr := s.guests.FindByEventAndDeviceToken(ctx, event.ID, s.HashToken(deviceToken))
+		if lookupErr != nil || guest.Status != domain.GuestActive {
+			return nil, nil, domain.ErrUnauthorized
+		}
 	}
 	if !galleryAvailable(event) {
 		return nil, nil, domain.ErrRevealNotReached
@@ -824,6 +853,48 @@ func (s *Service) HashToken(token string) string {
 	mac := hmac.New(sha256.New, []byte(s.pepper))
 	mac.Write([]byte(token))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (s *Service) deriveEventAccessToken(eventID, version string) string {
+	mac := hmac.New(sha256.New, []byte(s.pepper))
+	mac.Write([]byte("event-access:" + eventID + ":" + version))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (s *Service) eventGuestURL(event *domain.Event) string {
+	if event.AccessTokenVersion == "" {
+		return ""
+	}
+	token := s.deriveEventAccessToken(event.ID, event.AccessTokenVersion)
+	return fmt.Sprintf("%s/guest/%s?t=%s", s.guestURLBase, event.Slug, token)
+}
+
+func (s *Service) MigrateLegacyEventTokens(ctx context.Context) (int, error) {
+	events, err := s.events.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+	migrated := 0
+	for i := range events {
+		if events[i].AccessTokenVersion == "" {
+			version, err := randomToken()
+			if err != nil {
+				return migrated, err
+			}
+			events[i].AccessTokenVersion = version
+		}
+		expectedHash := s.HashToken(s.deriveEventAccessToken(events[i].ID, events[i].AccessTokenVersion))
+		if events[i].GuestURL == "" && events[i].AccessTokenHash == expectedHash {
+			continue
+		}
+		events[i].AccessTokenHash = expectedHash
+		events[i].GuestURL = ""
+		if err := s.events.Update(ctx, &events[i]); err != nil {
+			return migrated, err
+		}
+		migrated++
+	}
+	return migrated, nil
 }
 
 func (s *Service) tokenMatches(raw, expected string) bool {
@@ -874,6 +945,15 @@ func galleryAvailable(event *domain.Event) bool {
 func allowedImageType(contentType string) bool {
 	switch strings.ToLower(contentType) {
 	case "image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif":
+		return true
+	default:
+		return false
+	}
+}
+
+func validEventMode(mode domain.EventMode) bool {
+	switch mode {
+	case domain.ModeStandardUpload, domain.ModeDisposableCamera, domain.ModeLiveGallery, domain.ModeDelayedReveal:
 		return true
 	default:
 		return false

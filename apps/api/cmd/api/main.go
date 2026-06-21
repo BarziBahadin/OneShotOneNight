@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,13 +21,17 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	if err := validateProductionConfig(cfg); err != nil {
+	cfg, err := config.Load()
+	if err != nil {
 		log.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
-	redisClient := redisinfra.NewClient(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if err := validateConfig(cfg); err != nil {
+		log.Error("invalid configuration", "error", err)
+		os.Exit(1)
+	}
+	redisClient := redisinfra.NewClient(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB, cfg.RedisTLS)
 	store := redisinfra.NewStore(redisClient)
 	svc := application.NewService(application.NewServiceInput{
 		Events: store.Events(), Guests: store.Guests(), Photos: store.Photos(), Idempotency: store.Idempotency(), Uploads: store.Uploads(),
@@ -35,10 +40,18 @@ func main() {
 			Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
 			AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, UsePathStyle: cfg.S3UsePathStyle,
 		},
-		Pepper: cfg.TokenPepper, WebURL: cfg.PublicWebURL, GuestURLBase: cfg.PublicWebURL, MaxBytes: cfg.MaxUploadBytes,
+		Pepper: cfg.TokenPepper, GuestURLBase: cfg.PublicWebURL, MaxBytes: cfg.MaxUploadBytes,
 		DisableGuestTokens: cfg.DisableGuestTokens, AdminPassword: cfg.AdminPassword, AdminPasswordHash: cfg.AdminPasswordHash, AdminSessionTTL: cfg.AdminSessionTTL,
 	})
-	handler, err := httpapi.NewWithError(svc, cfg, log)
+	migratedTokens, err := svc.MigrateLegacyEventTokens(context.Background())
+	if err != nil {
+		log.Error("legacy event-token migration failed", "error", err)
+		os.Exit(1)
+	}
+	if migratedTokens > 0 {
+		log.Warn("rotated event links after token-storage or pepper migration", "events", migratedTokens)
+	}
+	handler, err := httpapi.NewWithError(svc, cfg, log, store.RateLimits())
 	if err != nil {
 		log.Error("invalid http configuration", "error", err)
 		os.Exit(1)
@@ -65,17 +78,57 @@ func main() {
 }
 
 func validateProductionConfig(cfg config.Config) error {
+	if err := validateConfig(cfg); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateConfig(cfg config.Config) error {
+	if cfg.AppEnv != "development" && cfg.AppEnv != "test" && cfg.AppEnv != "production" {
+		return fmt.Errorf("APP_ENV must be development, test, or production")
+	}
+	if len(cfg.TokenPepper) < 32 || cfg.TokenPepper == "dev-pepper-change-me" || cfg.TokenPepper == "change-me-to-a-long-random-secret" {
+		return fmt.Errorf("TOKEN_PEPPER must be a random secret of at least 32 characters")
+	}
+	if cfg.AdminPasswordHash == "" && (len(cfg.AdminPassword) < 12 || cfg.AdminPassword == "admin") {
+		return fmt.Errorf("ADMIN_PASSWORD must be at least 12 characters when ADMIN_PASSWORD_HASH is not set")
+	}
+	if cfg.AdminPasswordHash != "" && !strings.HasPrefix(cfg.AdminPasswordHash, "$2") {
+		return fmt.Errorf("ADMIN_PASSWORD_HASH must be a bcrypt hash")
+	}
+	if cfg.RedisPassword == "" {
+		return fmt.Errorf("REDIS_PASSWORD must be set")
+	}
+	if cfg.S3AccessKey == "" || cfg.S3SecretKey == "" || cfg.S3AccessKey == "minioadmin" || cfg.S3SecretKey == "minioadmin" {
+		return fmt.Errorf("S3 credentials must be set to non-default values")
+	}
+	if strings.TrimSpace(cfg.RedisAddr) == "" {
+		return fmt.Errorf("REDIS_ADDR must be set")
+	}
+	if cfg.DataBackend != "redis" {
+		return fmt.Errorf("DATA_BACKEND=%s is not implemented by the runtime", cfg.DataBackend)
+	}
+	if cfg.AdminSessionTTL <= 0 || cfg.AdminSessionTTL > 30*24*time.Hour {
+		return fmt.Errorf("ADMIN_SESSION_TTL_HOURS must be between 1 and 720")
+	}
+	if cfg.GuestCookieTTL <= 0 || cfg.GuestCookieTTL > 365*24*time.Hour {
+		return fmt.Errorf("GUEST_COOKIE_TTL_HOURS must be between 1 and 8760")
+	}
+	if cfg.MaxUploadBytes <= 0 || cfg.MaxUploadBytes > 100<<20 {
+		return fmt.Errorf("MAX_UPLOAD_BYTES must be between 1 and 104857600")
+	}
+	if !isHTTPURL(cfg.PublicWebURL) {
+		return fmt.Errorf("PUBLIC_WEB_URL must be an HTTP or HTTPS URL")
+	}
+	if !isHTTPURL(cfg.S3Endpoint) || cfg.S3Bucket == "" || cfg.S3Region == "" {
+		return fmt.Errorf("S3 endpoint, bucket, and region must be configured")
+	}
 	if cfg.AppEnv != "production" {
 		return nil
 	}
 	if cfg.DisableGuestTokens {
 		return fmt.Errorf("DISABLE_GUEST_TOKENS cannot be true in production")
-	}
-	if cfg.TokenPepper == "" || cfg.TokenPepper == "dev-pepper-change-me" || cfg.TokenPepper == "change-me-to-a-long-random-secret" {
-		return fmt.Errorf("TOKEN_PEPPER must be a strong production secret")
-	}
-	if cfg.DataBackend != "redis" {
-		return fmt.Errorf("DATA_BACKEND=%s is not implemented by the runtime", cfg.DataBackend)
 	}
 	if cfg.AdminPasswordHash == "" {
 		return fmt.Errorf("ADMIN_PASSWORD_HASH must be set in production")
@@ -89,18 +142,35 @@ func validateProductionConfig(cfg config.Config) error {
 	if !isHTTPSURL(cfg.PublicWebURL) {
 		return fmt.Errorf("PUBLIC_WEB_URL must be an HTTPS URL in production")
 	}
+	if !isHTTPSURL(cfg.S3Endpoint) {
+		return fmt.Errorf("S3_ENDPOINT must be an HTTPS URL in production")
+	}
+	if !cfg.RedisTLS && !isLoopbackAddress(cfg.RedisAddr) {
+		return fmt.Errorf("REDIS_TLS must be true for a non-loopback Redis server in production")
+	}
 	for _, origin := range cfg.CORSOrigins {
 		if !isHTTPSURL(origin) {
 			return fmt.Errorf("CORS_ORIGINS must contain only HTTPS origins in production")
 		}
 	}
-	if cfg.S3AccessKey == "" || cfg.S3SecretKey == "" || cfg.S3AccessKey == "minioadmin" || cfg.S3SecretKey == "minioadmin" {
-		return fmt.Errorf("S3 credentials must be set to non-default production values")
-	}
 	return nil
+}
+
+func isLoopbackAddress(address string) bool {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return false
+	}
+	ip := net.ParseIP(host)
+	return host == "localhost" || (ip != nil && ip.IsLoopback())
 }
 
 func isHTTPSURL(raw string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
+}
+
+func isHTTPURL(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }

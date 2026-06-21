@@ -15,6 +15,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [lastUpload, setLastUpload] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
   const autoJoinAttempted = useRef(false);
   const activeToken = useMemo(() => normalizeToken(accessToken), [accessToken]);
   const shareLink = useMemo(() => guestURL(slug, activeToken), [slug, activeToken]);
@@ -33,6 +34,8 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
       setEvent(out.event);
       setRemaining(out.remaining_shots);
       setGalleryAvailable(out.gallery_available);
+      setSessionReady(true);
+      window.history.replaceState({}, "", `/guest/${slug}`);
     } catch (err) {
       setStatus(err instanceof Error ? friendlyJoinError(err.message) : "Unable to open this invitation.");
     } finally {
@@ -67,7 +70,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
     setStatus("");
     setLastUpload("");
     try {
-      const out = await uploadGuestPhoto(slug, activeToken, file, message.trim());
+      const out = await uploadGuestPhoto(slug, sessionReady ? "" : activeToken, file, message.trim());
       setRemaining(out.remaining_shots);
       setMessage("");
       setLastUpload("Photo uploaded.");
@@ -177,7 +180,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
             <button type="button" onClick={copyLink} className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-4 text-sm font-bold text-white">
               <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy link"}
             </button>
-            <a href={`/gallery/${slug}?t=${encodeURIComponent(activeToken)}`} className="flex min-h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] px-4 text-sm font-bold text-white">
+            <a href={`/gallery/${slug}`} className="flex min-h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] px-4 text-sm font-bold text-white">
               View album
             </a>
           </div>

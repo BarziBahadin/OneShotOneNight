@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, Camera, Download, QrCode, Share2, X } from "lucide-react";
-import { EventRecord, guestGallery, guestURL, PhotoRecord } from "@/lib/api";
+import { EventRecord, guestGallery, guestURL, joinGuest, PhotoRecord } from "@/lib/api";
 
 export function GalleryView({ slug, accessToken }: { slug: string; accessToken: string }) {
   const [event, setEvent] = useState<EventRecord | null>(null);
@@ -18,13 +18,22 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
   const locked = Boolean(status && /developing|unlock|reveal/i.test(status));
 
   useEffect(() => {
-    guestGallery(slug, accessToken).then((out) => {
-      setEvent(out.event);
-      setPhotos(out.photos);
-      setStatus(out.photos.length ? "" : "No approved photos yet.");
-    }).catch((err: Error) => {
-      setStatus(err.message.includes("reveal_not_reached") ? "Photos are sealed until the reveal. Come back when the album unlocks." : err.message);
-    });
+    async function load() {
+      try {
+        if (accessToken) {
+          await joinGuest(slug, accessToken, "");
+          window.history.replaceState({}, "", `/gallery/${slug}`);
+        }
+        const out = await guestGallery(slug, "");
+        setEvent(out.event);
+        setPhotos(out.photos);
+        setStatus(out.photos.length ? "" : "No approved photos yet.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to load the album.";
+        setStatus(message.includes("reveal_not_reached") ? "Photos are sealed until the reveal. Come back when the album unlocks." : message);
+      }
+    }
+    load();
   }, [slug, accessToken]);
 
   useEffect(() => {
@@ -73,14 +82,14 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-5xl flex-col px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between gap-3">
-          <a href={`/guest/${slug}?t=${encodeURIComponent(accessToken)}`} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 backdrop-blur" aria-label="Back to camera">
+          <a href={`/guest/${slug}`} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 backdrop-blur" aria-label="Back to camera">
             <ArrowLeft className="h-5 w-5" />
           </a>
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowQR(true)} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 backdrop-blur" aria-label="Share QR code">
               <QrCode className="h-5 w-5" />
             </button>
-            <a href={`/guest/${slug}?t=${encodeURIComponent(accessToken)}`} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white text-black shadow-xl" aria-label="Open camera">
+            <a href={`/guest/${slug}`} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white text-black shadow-xl" aria-label="Open camera">
               <Camera className="h-5 w-5" />
             </a>
           </div>
@@ -112,7 +121,7 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
           ) : null}
 
           {status ? (
-            <LockedOrEmptyState locked={locked} message={status} cameraHref={`/guest/${slug}?t=${encodeURIComponent(accessToken)}`} />
+            <LockedOrEmptyState locked={locked} message={status} cameraHref={`/guest/${slug}`} />
           ) : (
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {visiblePhotos.map((photo) => (

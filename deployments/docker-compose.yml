@@ -1,37 +1,41 @@
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.9-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+      - "127.0.0.1:6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     volumes:
       - redis-data:/data
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_BIND_IP:-127.0.0.1}:9000:9000"
+      - "127.0.0.1:9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: "${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}"
+      MINIO_ROOT_PASSWORD: "${S3_SECRET_KEY:?S3_SECRET_KEY is required}"
+      MINIO_API_CORS_ALLOW_ORIGIN: "${MINIO_CORS_ALLOW_ORIGIN:-http://localhost:3000}"
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
 
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     depends_on:
       - minio
     volumes:
-      - ./minio-cors.json:/tmp/minio-cors.json:ro
+      - ./minio-lifecycle.json:/tmp/minio-lifecycle.json:ro
     entrypoint: >
       /bin/sh -c "
-      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done;
+      until mc alias set local http://minio:9000 "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY"; do sleep 1; done;
       mc mb -p local/oneshotonenight;
-      mc cors set local/oneshotonenight /tmp/minio-cors.json;
+      mc ilm rule import local/oneshotonenight < /tmp/minio-lifecycle.json;
       mc anonymous set none local/oneshotonenight;
       "
+    environment:
+      S3_ACCESS_KEY: "${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}"
+      S3_SECRET_KEY: "${S3_SECRET_KEY:?S3_SECRET_KEY is required}"
 
 volumes:
   redis-data:

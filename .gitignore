@@ -3,6 +3,10 @@ node_modules/
 dist/
 coverage/
 .env
+.env.*
+!.env.example
+!**/.env.example
+.dev-secrets
 .DS_Store
 tmp/
 *.log
@@ -16,19 +20,13 @@ bin/
 *.swo
 *.bak
 *.tmp
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.example
 *.pem
 *.key
 *.crt
 *.json
+!deployments/*.json
 
 # Ignore all files in the public directory except for the ones we need
 /public/*
 !/public/favicon.ico
 !/public/manifest.json      
-
-
