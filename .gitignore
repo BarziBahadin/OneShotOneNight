@@ -25,6 +25,7 @@ bin/
 *.crt
 *.json
 !deployments/*.json
+!**/vercel.json
 
 # Ignore all files in the public directory except for the ones we need
 /public/*
