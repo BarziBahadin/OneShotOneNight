@@ -50,18 +50,9 @@ set -a
 source "$DEV_SECRETS"
 set +a
 
-LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
-if [[ -z "$LAN_IP" ]] && command -v hostname >/dev/null 2>&1; then
-  LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-fi
-LAN_IP="${LAN_IP:-localhost}"
+export VITE_PUBLIC_WEB_URL="https://one-shot-one-night.vercel.app"
 
-if [[ -z "${PUBLIC_WEB_URL:-}" || "$PUBLIC_WEB_URL" == *"localhost"* || "$PUBLIC_WEB_URL" == *"127.0.0.1"* ]]; then
-  export PUBLIC_WEB_URL="http://$LAN_IP:3000"
-fi
-export VITE_PUBLIC_WEB_URL="$PUBLIC_WEB_URL"
-
-echo "Development admin password: $ADMIN_PASSWORD"
+echo "Admin password: admin"
 
 cd "$WEB_DIR"
 "$VITE"

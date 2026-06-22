@@ -1,6 +1,6 @@
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
-const configuredPublicWebURL = import.meta.env.VITE_PUBLIC_WEB_URL;
 const defaultSupabaseApiBase = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
+const publicWebBase = "https://one-shot-one-night.vercel.app";
 const adminTokenKey = "oneshot_admin_token";
 const guestTokenKey = "oneshot_guest_token";
 
@@ -15,9 +15,7 @@ export function guestURL(slug: string, accessToken: string) {
 }
 
 function publicWebBaseURL(): string {
-  const configured = configuredPublicWebURL?.replace(/\/$/, "");
-  const browserOrigin = typeof window !== "undefined" ? window.location.origin : "";
-  return configured || browserOrigin || "http://localhost:3000";
+  return publicWebBase;
 }
 
 export function publicWebURL(url?: string): string {

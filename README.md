@@ -67,7 +67,7 @@ password when it starts. Delete `.dev-secrets` to rotate all local credentials.
 Guest links and QR codes use the machine’s current LAN IP, for example:
 
 ```text
-http://192.168.6.92:3000/guest/event-slug?t=token
+https://one-shot-one-night.vercel.app/guest/event-slug?t=token
 ```
 
 The IP can change when Wi-Fi/router changes. Restart Vite if the printed network address changes.
