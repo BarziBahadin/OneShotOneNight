@@ -1,4 +1,4 @@
-const VERSION = "oneshotonenight-v4";
+const VERSION = "oneshotonenight-v5";
 const APP_SHELL_CACHE = `${VERSION}-app-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -31,6 +31,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin || !["http:", "https:"].includes(url.protocol)) {
+    return;
+  }
 
   if (request.method !== "GET" || url.pathname.startsWith("/api/")) {
     return;

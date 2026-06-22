@@ -3,6 +3,7 @@ const defaultSupabaseApiBase = "https://huakafctiajezinrzfle.supabase.co/functio
 const publicWebBase = "https://one-shot-one-night.vercel.app";
 const adminTokenKey = "oneshot_admin_token";
 const guestTokenKey = "oneshot_guest_token";
+const guestAccessTokenPrefix = "oneshot_guest_access:";
 
 export function apiBaseURL() {
   if (configuredApiBase) return configuredApiBase.replace(/\/$/, "");
@@ -12,6 +13,14 @@ export function apiBaseURL() {
 export function guestURL(slug: string, accessToken: string) {
   const base = publicWebBaseURL();
   return `${base}/guest/${slug}?t=${encodeURIComponent(accessToken)}`;
+}
+
+export function rememberGuestAccessToken(slug: string, token: string) {
+  if (token) sessionStorage.setItem(`${guestAccessTokenPrefix}${slug}`, token);
+}
+
+export function storedGuestAccessToken(slug: string) {
+  return sessionStorage.getItem(`${guestAccessTokenPrefix}${slug}`) ?? "";
 }
 
 function publicWebBaseURL(): string {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, Camera, Download, QrCode, Share2, X } from "lucide-react";
-import { EventRecord, guestGallery, guestURL, joinGuest, PhotoRecord } from "@/lib/api";
+import { EventRecord, guestGallery, guestURL, joinGuest, PhotoRecord, rememberGuestAccessToken, storedGuestAccessToken } from "@/lib/api";
 
 export function GalleryView({ slug, accessToken }: { slug: string; accessToken: string }) {
   const [event, setEvent] = useState<EventRecord | null>(null);
@@ -13,18 +13,20 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
   const [qrDataURL, setQRDataURL] = useState("");
   const [toast, setToast] = useState("");
 
-  const link = useMemo(() => guestURL(slug, accessToken), [slug, accessToken]);
+  const activeToken = useMemo(() => accessToken || storedGuestAccessToken(slug), [slug, accessToken]);
+  const link = useMemo(() => guestURL(slug, activeToken), [slug, activeToken]);
   const visiblePhotos = photos.filter((photo) => photo.status === "approved" && photo.is_developed !== false);
   const locked = Boolean(status && /developing|unlock|reveal/i.test(status));
 
   useEffect(() => {
     async function load() {
       try {
-        if (accessToken) {
-          await joinGuest(slug, accessToken, "");
+        if (activeToken) {
+          rememberGuestAccessToken(slug, activeToken);
+          await joinGuest(slug, activeToken, "");
           window.history.replaceState({}, "", `/gallery/${slug}`);
         }
-        const out = await guestGallery(slug, "");
+        const out = await guestGallery(slug, activeToken);
         setEvent(out.event);
         setPhotos(out.photos);
         setStatus(out.photos.length ? "" : "No approved photos yet.");
@@ -34,7 +36,7 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
       }
     }
     load();
-  }, [slug, accessToken]);
+  }, [slug, activeToken]);
 
   useEffect(() => {
     if (!showQR) return;

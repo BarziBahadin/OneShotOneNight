@@ -12,7 +12,7 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import { EventRecord, guestURL, joinGuest, uploadGuestPhoto } from "@/lib/api";
+import { EventRecord, guestURL, joinGuest, rememberGuestAccessToken, storedGuestAccessToken, uploadGuestPhoto } from "@/lib/api";
 
 export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: string }) {
   const [event, setEvent] = useState<EventRecord | null>(null);
@@ -24,16 +24,16 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
   const [copied, setCopied] = useState(false);
   const [lastUpload, setLastUpload] = useState("");
   const [showInfo, setShowInfo] = useState(false);
-  const [sessionReady, setSessionReady] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const autoJoinAttempted = useRef(false);
   const cameraInput = useRef<HTMLInputElement>(null);
   const libraryInput = useRef<HTMLInputElement>(null);
-  const activeToken = useMemo(() => normalizeToken(accessToken), [accessToken]);
+  const activeToken = useMemo(() => normalizeToken(accessToken) || storedGuestAccessToken(slug), [accessToken, slug]);
   const shareLink = useMemo(() => guestURL(slug, activeToken), [slug, activeToken]);
 
   useEffect(() => {
     if (autoJoinAttempted.current || !activeToken) return;
+    rememberGuestAccessToken(slug, activeToken);
     autoJoinAttempted.current = true;
     void join();
   }, [activeToken]);
@@ -51,7 +51,6 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
       setEvent(out.event);
       setRemaining(out.remaining_shots);
       setGalleryAvailable(out.gallery_available);
-      setSessionReady(true);
       window.history.replaceState({}, "", `/guest/${slug}`);
     } catch (err) {
       setStatus(err instanceof Error ? friendlyJoinError(err.message) : "Unable to open this invitation.");
@@ -76,7 +75,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
     setStatus("");
     setLastUpload("");
     try {
-      const out = await uploadGuestPhoto(slug, sessionReady ? "" : activeToken, file, "");
+      const out = await uploadGuestPhoto(slug, activeToken, file, "");
       setRemaining(out.remaining_shots);
       setLastUpload("Your photo is safely stored for the reveal.");
     } catch (err) {
