@@ -1,9 +1,12 @@
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
 const configuredPublicWebURL = import.meta.env.VITE_PUBLIC_WEB_URL;
+const defaultSupabaseApiBase = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
+const adminTokenKey = "oneshot_admin_token";
+const guestTokenKey = "oneshot_guest_token";
 
 export function apiBaseURL() {
   if (configuredApiBase) return configuredApiBase.replace(/\/$/, "");
-  return "";
+  return defaultSupabaseApiBase;
 }
 
 export function guestURL(slug: string, accessToken: string) {
@@ -119,14 +122,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
   const method = init?.method ?? "GET";
-  const csrfToken = adminMutationNeedsCSRF(path, method) ? readCookie("admin_csrf") : "";
-  if (csrfToken) {
-    headers.set("X-CSRF-Token", csrfToken);
+  if (path.startsWith("/api/v1/admin/") && path !== "/api/v1/admin/login") {
+    const token = localStorage.getItem(adminTokenKey);
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (path.startsWith("/api/v1/guest/")) {
+    headers.set("X-Guest-Token", guestDeviceToken());
   }
   try {
     res = await fetch(`${apiBaseURL()}${path}`, {
       ...init,
-      credentials: "include",
       headers
     });
   } catch {
@@ -144,30 +149,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-function adminMutationNeedsCSRF(path: string, method: string) {
-  const normalized = method.toUpperCase();
-  return path.startsWith("/api/v1/admin/") && !["GET", "HEAD", "OPTIONS"].includes(normalized);
+function guestDeviceToken() {
+  let token = localStorage.getItem(guestTokenKey);
+  if (!token) {
+    token = randomID();
+    localStorage.setItem(guestTokenKey, token);
+  }
+  return token;
 }
 
-function readCookie(name: string) {
-  if (typeof document === "undefined") return "";
-  const prefix = `${name}=`;
-  return document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(prefix))
-    ?.slice(prefix.length) ?? "";
-}
-
-export function adminLogin(password: string) {
-  return request<{ ok: boolean; expires_at: string }>("/api/v1/admin/login", {
+export async function adminLogin(password: string) {
+  const result = await request<{ ok: boolean; token: string; expires_at: string }>("/api/v1/admin/login", {
     method: "POST",
     body: JSON.stringify({ password })
   });
+  localStorage.setItem(adminTokenKey, result.token);
+  return result;
 }
 
-export function adminLogout() {
-  return request<{ ok: boolean }>("/api/v1/admin/logout", { method: "POST" });
+export async function adminLogout() {
+  try {
+    return await request<{ ok: boolean }>("/api/v1/admin/logout", { method: "POST" });
+  } finally {
+    localStorage.removeItem(adminTokenKey);
+  }
 }
 
 export function adminMe() {
@@ -199,6 +204,15 @@ export function adminEvent(eventID: string) {
 
 export function adminPhotoArchiveURL(eventID: string) {
   return `${apiBaseURL()}/api/v1/admin/events/${eventID}/photos/download`;
+}
+
+export async function adminDownloadPhotoArchive(eventID: string) {
+  const token = localStorage.getItem(adminTokenKey);
+  const response = await fetch(adminPhotoArchiveURL(eventID), {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  });
+  if (!response.ok) throw new APIError("Download failed", response.status, "download_failed");
+  return response.blob();
 }
 
 export function adminUpdateEvent(eventID: string, payload: unknown) {

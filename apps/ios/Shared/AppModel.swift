@@ -49,14 +49,14 @@ struct EventInvitation: Hashable, Sendable {
             base.host = host
             base.port = url.port
             guard let apiURL = base.url else { return nil }
-            apiBaseURL = apiURL
+            apiBaseURL = URL(string: "https://huakafctiajezinrzfle.supabase.co/functions/v1/api") ?? apiURL
         } else {
             #if DEBUG
             guard let fallback = URL(string: "http://127.0.0.1:3000") else { return nil }
             #else
             guard let fallback = URL(string: "https://oneshotonenight.app") else { return nil }
             #endif
-            apiBaseURL = fallback
+            apiBaseURL = URL(string: "https://huakafctiajezinrzfle.supabase.co/functions/v1/api") ?? fallback
         }
         self.slug = slug
         accessToken = token

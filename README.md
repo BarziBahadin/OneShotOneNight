@@ -7,14 +7,13 @@ Guests scan a static event QR code, open a private web guest page, take or choos
 ## Stack
 
 - `apps/web`: Vite, React, React Router, TypeScript, Tailwind CSS, PWA metadata, service worker.
-- `apps/api`: Go, `net/http`, `go-chi/chi`, Supabase Postgres, and Supabase Storage.
-- `supabase`: database schema and private Storage bucket migration.
+- `supabase/functions/api`: Supabase Edge Function containing the application API and business logic.
+- `supabase`: Postgres schema, RLS, server configuration, and private Storage bucket.
 
 ## Local Setup
 
 Prerequisites:
 
-- Go
 - Node
 - Web dependencies installed in `apps/web`
 - A Supabase project with Database and Storage enabled
@@ -28,7 +27,7 @@ npm install
 cd ../..
 ```
 
-Fill the Supabase database URL and Storage S3 credentials in `.env`. Get the session-pooler URL from **Connect**, then enable S3 and generate server-only access keys under **Storage → Configuration → S3**.
+Set `VITE_API_BASE_URL` to `https://<project-ref>.supabase.co/functions/v1/api`.
 
 Apply the schema:
 
@@ -36,6 +35,7 @@ Apply the schema:
 npx supabase login
 npx supabase link --project-ref <project-ref>
 npx supabase db push
+npx supabase functions deploy api --no-verify-jwt
 ```
 
 Start the app:
@@ -50,14 +50,14 @@ Restart a running dev server:
 ./dev restart
 ```
 
-`./dev` starts Vite on port `3000` and launches the Go API on port `8080`. Browser API requests go through Vite, so frontend code calls `/api/...` and Vite proxies to Go.
+`./dev` starts Vite on port `3000`. All API, database, authentication-session, and Storage operations run on Supabase.
 
 If Vite is already running, `./dev` prints the current local and network URLs instead of crashing.
 
 ## URLs
 
 - Admin: `http://localhost:3000/admin`
-- Local health check: `http://localhost:3000/healthz`
+- API health check: `https://<project-ref>.supabase.co/functions/v1/api/api/v1/health`
 - Phone/LAN URL: printed by Vite as `Network: http://<your-ip>:3000/`
 
 `./dev` generates persistent random development credentials in the ignored,
@@ -78,23 +78,12 @@ Production guest QR codes should point to:
 https://your-domain.com/guest/event-slug?t=token
 ```
 
-Set these environment variables in production:
+Set these frontend environment variables in production:
 
 ```bash
-PUBLIC_WEB_URL=https://your-domain.com
-CORS_ORIGINS=https://your-domain.com
-COOKIE_SECURE=true
-ADMIN_PASSWORD_HASH=$2b$...
-TOKEN_PEPPER=<long-random-secret>
-DATABASE_URL=postgresql://...
-DB_MAX_CONNECTIONS=10
-SUPABASE_STORAGE_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
-SUPABASE_STORAGE_REGION=<project-region>
-SUPABASE_STORAGE_ACCESS_KEY=<server-only-access-key>
-SUPABASE_STORAGE_SECRET_KEY=<server-only-secret-key>
+VITE_API_BASE_URL=https://<project-ref>.supabase.co/functions/v1/api
+VITE_PUBLIC_WEB_URL=https://your-domain.com
 ```
-
-If the API runs behind a reverse proxy, set `TRUSTED_PROXIES` to the proxy IP or CIDR before relying on `X-Forwarded-For` for rate limiting.
 
 ## Host Flow
 
@@ -151,17 +140,10 @@ npm run typecheck
 npm run build
 ```
 
-Backend:
-
-```bash
-cd apps/api
-go test ./...
-```
-
 Manual smoke test:
 
 ```bash
-curl http://localhost:3000/healthz
+curl https://<project-ref>.supabase.co/functions/v1/api/api/v1/health
 ```
 
 Expected:
@@ -172,7 +154,7 @@ Expected:
 
 ## Architecture Notes
 
-The API keeps domain logic independent of PostgreSQL and S3-compatible storage. Application tables live in a non-exposed `private` schema; the Go API is the only supported data-access path. Photos live in a private Supabase Storage bucket and are served through short-lived signed URLs.
+The Supabase Edge Function is the only supported data-access path. Application tables use RLS with no client policies, and the function accesses them with Supabase's server key. Photos live in a private Supabase Storage bucket and are served through short-lived signed URLs.
 
 Image binaries upload directly to object storage through presigned URLs. The API stores metadata and object keys, and streams ZIP downloads from object storage for hosts.
 

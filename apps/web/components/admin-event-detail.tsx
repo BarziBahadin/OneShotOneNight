@@ -7,7 +7,7 @@ import { AdminShell } from "@/components/admin-shell";
 import {
   adminEvent,
   adminModeratePhoto,
-  adminPhotoArchiveURL,
+  adminDownloadPhotoArchive,
   adminResetEventTokens,
   adminSetEventStatus,
   adminUpdateEvent,
@@ -155,6 +155,16 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
     [detail.photos]
   );
 
+  async function downloadPhotos() {
+    const blob = await adminDownloadPhotoArchive(detail.event.id);
+    const href = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.download = `${detail.event.slug}-photos.zip`;
+    anchor.click();
+    URL.revokeObjectURL(href);
+  }
+
   async function moderate(photoID: string, status: PhotoRecord["status"]) {
     await adminModeratePhoto(detail.event.id, photoID, status);
     await onChange();
@@ -229,9 +239,9 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
             <div className="flex flex-wrap items-center justify-end gap-3">
               <span className="text-sm text-moss">{detail.event.auto_approve_photos ? "Publishing automatically" : "Manual approval"}</span>
               {photos.length ? (
-                <a className="btn-ghost px-4 py-2" href={adminPhotoArchiveURL(detail.event.id)} download>
+                <button className="btn-ghost px-4 py-2" type="button" onClick={() => void downloadPhotos()}>
                   <Download className="h-4 w-4" /> Download all
-                </a>
+                </button>
               ) : null}
             </div>
           </div>

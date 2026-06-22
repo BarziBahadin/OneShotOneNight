@@ -5,6 +5,7 @@ actor APIClient {
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let guestToken = UUID().uuidString
 
     init(invitation: EventInvitation) {
         self.invitation = invitation
@@ -23,6 +24,7 @@ actor APIClient {
         return try await request(
             path: "/api/v1/guest/\(invitation.slug)/join",
             method: "POST",
+            headers: ["X-Guest-Token": guestToken],
             body: Body(accessToken: invitation.accessToken, displayName: "")
         )
     }
@@ -37,7 +39,7 @@ actor APIClient {
         let presign: PresignResponse = try await request(
             path: "/api/v1/guest/\(invitation.slug)/uploads/presign",
             method: "POST",
-            headers: ["Idempotency-Key": UUID().uuidString],
+            headers: ["Idempotency-Key": UUID().uuidString, "X-Guest-Token": guestToken],
             body: PresignBody(accessToken: invitation.accessToken, fileName: "photo-\(UUID().uuidString).jpg", contentType: "image/jpeg", sizeBytes: jpegData.count)
         )
         try await signedUpload(data: jpegData, presign: presign)
@@ -51,6 +53,7 @@ actor APIClient {
         return try await request(
             path: "/api/v1/guest/\(invitation.slug)/photos",
             method: "POST",
+            headers: ["X-Guest-Token": guestToken],
             body: RegisterBody(accessToken: invitation.accessToken, photoID: presign.photoID, uploadToken: presign.uploadToken, message: message)
         )
     }
@@ -112,4 +115,3 @@ enum APIError: LocalizedError {
         }
     }
 }
-
