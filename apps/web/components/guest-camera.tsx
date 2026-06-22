@@ -1,36 +1,53 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Camera, Copy, ImagePlus, Pencil, Sparkles, Upload } from "lucide-react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Camera,
+  Check,
+  Copy,
+  Images,
+  Info,
+  LockKeyhole,
+  ShieldCheck,
+  Sparkles,
+  X
+} from "lucide-react";
 import { EventRecord, guestURL, joinGuest, uploadGuestPhoto } from "@/lib/api";
 
 export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: string }) {
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [galleryAvailable, setGalleryAvailable] = useState(false);
-  const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState("Opening invitation...");
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [lastUpload, setLastUpload] = useState("");
+  const [showInfo, setShowInfo] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const autoJoinAttempted = useRef(false);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const libraryInput = useRef<HTMLInputElement>(null);
   const activeToken = useMemo(() => normalizeToken(accessToken), [accessToken]);
   const shareLink = useMemo(() => guestURL(slug, activeToken), [slug, activeToken]);
 
   useEffect(() => {
     if (autoJoinAttempted.current || !activeToken) return;
     autoJoinAttempted.current = true;
-    join("");
+    void join();
   }, [activeToken]);
 
-  async function join(name: string) {
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function join() {
     setBusy(true);
     setStatus("");
     try {
-      const out = await joinGuest(slug, activeToken, name);
+      const out = await joinGuest(slug, activeToken, "");
       setEvent(out.event);
       setRemaining(out.remaining_shots);
       setGalleryAvailable(out.gallery_available);
@@ -43,11 +60,6 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
     }
   }
 
-  async function saveName(submitEvent: FormEvent<HTMLFormElement>) {
-    submitEvent.preventDefault();
-    await join(displayName.trim());
-  }
-
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(shareLink);
@@ -58,148 +70,152 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
     }
   }
 
-  async function uploadPhoto(submitEvent: FormEvent<HTMLFormElement>) {
-    submitEvent.preventDefault();
-    const form = new FormData(submitEvent.currentTarget);
-    const file = form.get("photo");
-    if (!(file instanceof File) || file.size === 0) {
-      setStatus("Choose a photo before uploading.");
-      return;
-    }
+  async function uploadPhoto(file: File) {
+    if (!file.size) return;
     setUploading(true);
     setStatus("");
     setLastUpload("");
     try {
-      const out = await uploadGuestPhoto(slug, sessionReady ? "" : activeToken, file, message.trim());
+      const out = await uploadGuestPhoto(slug, sessionReady ? "" : activeToken, file, "");
       setRemaining(out.remaining_shots);
-      setMessage("");
-      setLastUpload("Photo uploaded.");
-      submitEvent.currentTarget.reset();
+      setLastUpload("Your photo is safely stored for the reveal.");
     } catch (err) {
       setStatus(err instanceof Error ? friendlyJoinError(err.message) : "Unable to upload this photo.");
     } finally {
       setUploading(false);
+      if (cameraInput.current) cameraInput.current.value = "";
+      if (libraryInput.current) libraryInput.current.value = "";
     }
+  }
+
+  function onPhotoSelected(inputEvent: ChangeEvent<HTMLInputElement>) {
+    const file = inputEvent.target.files?.[0];
+    if (file) void uploadPhoto(file);
   }
 
   if (!event) {
     return (
-      <main className="scene-page grid place-items-center px-6 text-center">
-        <img src="/pics/golden-event.jpg" alt="" className="scene-bg opacity-40" />
-        <div className="scene-vignette" />
-        <div className="scene-glass relative grid max-w-sm justify-items-center gap-5 rounded-[2rem] p-7">
+      <main className="reveal-page grid place-items-center px-6 text-center">
+        <img src="/pics/golden-event.jpg" alt="" className="reveal-bg opacity-45" />
+        <div className="reveal-vignette" />
+        <div className="reveal-dialog relative grid max-w-sm justify-items-center gap-5 p-7">
           <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/10">
             <Sparkles className="h-7 w-7" />
           </span>
           <div>
-            <p className="text-xs font-bold uppercase text-white/45">Guest invitation</p>
-            <h1 className="mt-3 text-3xl font-semibold">{busy ? "Opening..." : status ? "Link unavailable" : "One moment..."}</h1>
-            <p className="mt-3 text-sm leading-6 text-white/58">{status || "Preparing the private guest upload page."}</p>
+            <p className="reveal-kicker">Guest invitation</p>
+            <h1 className="mt-3 font-serif text-3xl font-semibold">{busy ? "Opening…" : "Link unavailable"}</h1>
+            <p className="mt-3 text-sm leading-6 text-white/60">{status || "Preparing your private event camera."}</p>
           </div>
-          {!busy && status ? <button type="button" onClick={() => join("")} className="rounded-full bg-white px-6 py-3 text-sm font-bold text-black">Try again</button> : null}
+          {!busy && status ? <button type="button" onClick={() => void join()} className="reveal-light-button">Try again</button> : null}
         </div>
       </main>
     );
   }
 
-  const shotCounter = remaining == null ? `${event.max_photos_per_guest}` : `${Math.max(event.max_photos_per_guest - remaining, 0)} / ${event.max_photos_per_guest}`;
+  const maxShots = event.max_photos_per_guest;
+  const shotsRemaining = remaining ?? maxShots;
+  const shotsUsed = Math.max(maxShots - shotsRemaining, 0);
+  const usedPercent = maxShots > 0 ? Math.min((shotsUsed / maxShots) * 100, 100) : 0;
+  const countdown = revealCountdown(event.reveal_at, now);
 
   return (
-    <main className="scene-page">
-      <img src="/pics/golden-event.jpg" alt="" className="scene-bg" />
-      <div className="scene-vignette" />
+    <main className="reveal-page">
+      <img src="/pics/golden-event.jpg" alt="A candlelit dinner table at sunset" className="reveal-bg" />
+      <div className="reveal-vignette" />
 
-      <section className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-xl flex-col justify-between px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="flex items-center justify-between">
-          <a href="/" className="scene-icon-button" aria-label="Back home">
-            <ArrowLeft className="h-5 w-5" />
-          </a>
-          <span className="scene-pill">Guest upload</span>
+      <section className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[430px] flex-col px-5 pb-[17rem] pt-[max(1.25rem,env(safe-area-inset-top))]">
+        <header className="flex items-center justify-between">
+          <a href="/" className="reveal-icon-button" aria-label="Close event"><X className="h-6 w-6" /></a>
+          <button type="button" onClick={() => setShowInfo(true)} className="reveal-chip"><Info className="h-5 w-5" /> Event info</button>
+        </header>
+
+        <div className="mt-[11vh] sm:mt-[13vh]">
+          <p className="reveal-kicker flex items-center gap-2">You’re joined <LockKeyhole className="h-4 w-4" /></p>
+          <h1 className="mt-3 whitespace-nowrap font-serif text-[2.4rem] font-semibold leading-[0.95] tracking-[-0.045em] text-white min-[360px]:text-[2.85rem]">{event.name}</h1>
+          <p className="mt-4 text-sm font-medium uppercase tracking-[0.08em] text-white/58">{formatEventDate(event.starts_at)}</p>
         </div>
 
-        <div className="px-3 text-center">
-          <p className="text-xs font-bold uppercase text-white/58">Private event camera</p>
-          <h1 className="scene-title mx-auto mt-4 max-w-[11ch]">{event.name}</h1>
-          <p className="mx-auto mt-5 max-w-xs text-sm font-semibold leading-6 text-white/68">{formatEventDate(event.starts_at)}</p>
-        </div>
+        <div className="mt-auto pt-8">
+          {!galleryAvailable ? (
+            <section aria-label="Reveal countdown">
+              <p className="reveal-kicker">Photos reveal in</p>
+              <div className="mt-3 grid grid-cols-3 gap-4" aria-live="polite">
+                <TimeUnit value={countdown.hours} label="Hrs" />
+                <TimeUnit value={countdown.minutes} label="Min" />
+                <TimeUnit value={countdown.seconds} label="Sec" />
+              </div>
+              <div className="mt-7 flex items-center gap-4">
+                <span className="reveal-feature-icon"><LockKeyhole className="h-5 w-5 text-amber" /></span>
+                <div>
+                  <p className="font-semibold">Photos are locked.</p>
+                  <p className="mt-1 text-sm leading-5 text-white/54">You’ll be able to view them after the reveal.</p>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <a href={`/gallery/${slug}`} className="reveal-open-gallery">The album is revealed — view photos</a>
+          )}
 
-        <div className="scene-sheet">
-          <div className="mx-auto mb-5 h-1 w-12 rounded-full bg-white/22" />
-
-          <div className="mb-5 flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-black">
-              <Camera className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase text-white/42">Add a photo</p>
-              <p className="text-sm leading-5 text-white/68">Use your camera or choose a photo from your device.</p>
+          <section className="mt-8" aria-label="Photo allowance">
+            <div className="flex items-center gap-4">
+              <span className="reveal-feature-icon"><Camera className="h-5 w-5" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{shotsUsed} of {maxShots} shots used</p>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/14">
+                  <div className="h-full rounded-full bg-blue-600 transition-[width] duration-300" style={{ width: `${usedPercent}%` }} />
+                </div>
+                <p className="mt-2 text-sm text-white/48">Add up to {maxShots} photos to this event.</p>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <form onSubmit={saveName} className="grid gap-3">
-            <label className="relative block">
-              <Pencil className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" />
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="scene-field w-full pl-11"
-                placeholder="Enter your name"
-                autoComplete="name"
-                aria-label="Enter your name"
-              />
-            </label>
-            <button type="submit" disabled={busy} className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white disabled:opacity-45">
-              {busy ? "Saving..." : "Save name"}
+          <section className="reveal-actions mt-8">
+            <button type="button" disabled={uploading || shotsRemaining === 0} onClick={() => cameraInput.current?.click()} className="reveal-primary-action">
+              <Camera className="h-6 w-6" /> {uploading ? "Uploading…" : "Take a photo"}
             </button>
-          </form>
-
-          <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-            <Metric label="Shots" value={shotCounter} />
-            <Metric label="Album" value={galleryAvailable ? "Open" : "Locked"} />
-            <Metric label="Upload" value="Web" />
-          </div>
-
-          <form onSubmit={uploadPhoto} className="mt-6 grid gap-3">
-            <label className="flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-6 py-4 text-base font-bold text-black">
-              <ImagePlus className="h-5 w-5" />
-              Choose photo
-              <input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" className="sr-only" />
-            </label>
-            <textarea
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              className="scene-field min-h-20 w-full"
-              placeholder="Optional message"
-              maxLength={500}
-            />
-            <button type="submit" disabled={uploading || remaining === 0} className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-4 text-sm font-bold text-white disabled:opacity-45">
-              <Upload className="h-4 w-4" /> {uploading ? "Uploading..." : "Upload photo"}
+            <button type="button" disabled={uploading || shotsRemaining === 0} onClick={() => libraryInput.current?.click()} className="reveal-secondary-action">
+              <Images className="h-6 w-6" /> Choose from library
             </button>
-          </form>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <button type="button" onClick={copyLink} className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-4 text-sm font-bold text-white">
-              <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy link"}
-            </button>
-            <a href={`/gallery/${slug}`} className="flex min-h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] px-4 text-sm font-bold text-white">
-              View album
-            </a>
-          </div>
+            <input ref={cameraInput} onChange={onPhotoSelected} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" className="sr-only" />
+            <input ref={libraryInput} onChange={onPhotoSelected} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" />
+            <p className="flex items-center justify-center gap-2 text-center text-xs text-white/46"><ShieldCheck className="h-4 w-4 text-amber" /> Private event. Only the host controls the reveal.</p>
+          </section>
 
-          {lastUpload ? <p className="mt-4 rounded-2xl bg-emerald-500/15 px-4 py-3 text-center text-sm text-emerald-100">{lastUpload}</p> : null}
-          {status ? <p className="mt-4 rounded-2xl bg-red-500/15 px-4 py-3 text-center text-sm text-red-100">{status}</p> : null}
+          {lastUpload ? <p className="reveal-notice mt-4 text-emerald-100"><Check className="h-4 w-4" /> {lastUpload}</p> : null}
+          {status ? <p className="reveal-notice mt-4 text-red-100">{status}</p> : null}
         </div>
       </section>
+
+      {showInfo ? (
+        <div className="fixed inset-0 z-30 grid items-end bg-black/64 px-3" role="presentation" onClick={() => setShowInfo(false)}>
+          <section className="reveal-info-sheet mx-auto w-full max-w-[430px]" role="dialog" aria-modal="true" aria-labelledby="event-info-title" onClick={(clickEvent) => clickEvent.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="reveal-kicker">Private event</p><h2 id="event-info-title" className="mt-2 font-serif text-3xl">{event.name}</h2></div>
+              <button type="button" onClick={() => setShowInfo(false)} className="reveal-icon-button" aria-label="Close event information"><X className="h-5 w-5" /></button>
+            </div>
+            <p className="mt-5 text-sm leading-6 text-white/60">{event.description || "Share the night from your point of view. Every photo stays private until the reveal."}</p>
+            <button type="button" onClick={() => void copyLink()} className="reveal-secondary-action mt-6 w-full"><Copy className="h-5 w-5" /> {copied ? "Link copied" : "Copy guest link"}</button>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3">
-      <p className="text-[0.62rem] font-bold uppercase text-white/36">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold capitalize text-white/82">{value}</p>
-    </div>
-  );
+function TimeUnit({ value, label }: { value: string; label: string }) {
+  return <div><p className="font-serif text-[2.65rem] leading-none tracking-[-0.04em]">{value}</p><p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/46">{label}</p></div>;
+}
+
+function revealCountdown(value: string | undefined, now: number) {
+  const revealAt = value ? new Date(value).getTime() : now;
+  const difference = Math.max(revealAt - now, 0);
+  const totalSeconds = Math.floor(difference / 1000);
+  return {
+    hours: String(Math.floor(totalSeconds / 3600)).padStart(2, "0"),
+    minutes: String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0"),
+    seconds: String(totalSeconds % 60).padStart(2, "0")
+  };
 }
 
 function normalizeToken(value: string) {
@@ -217,7 +233,7 @@ function friendlyJoinError(message: string) {
   if (message.includes("event_not_started")) return "This event has not started yet. Come back when the celebration begins.";
   if (message.includes("event_ended")) return "Photo uploads have closed for this event.";
   if (message.includes("event_paused") || message.includes("event_locked")) return "The host has paused photo uploads for now.";
-  if (message.includes("upload_limit_reached")) return "You've used all your shots for this event.";
+  if (message.includes("upload_limit_reached")) return "You’ve used all your shots for this event.";
   if (message.includes("unauthorized")) return "This guest link is invalid or incomplete. Scan the event QR code again.";
   return message;
 }

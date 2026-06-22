@@ -539,7 +539,7 @@ type memoryStorage struct {
 	publicURLErrors map[string]error
 }
 
-func (*memoryStorage) PresignPost(context.Context, string, string, int64, time.Duration) (string, map[string]string, error) {
+func (*memoryStorage) PresignPut(context.Context, string, string, time.Duration) (string, map[string]string, error) {
 	return "http://upload.test", map[string]string{"policy": "test"}, nil
 }
 func (*memoryStorage) Head(context.Context, string) (*ports.ObjectInfo, error) {

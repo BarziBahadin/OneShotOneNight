@@ -245,7 +245,7 @@ export function joinGuest(slug: string, accessToken: string, displayName: string
 
 export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string) {
   const contentType = file.type || contentTypeFromFileName(file.name);
-  const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_fields: Record<string, string>; upload_token: string; remaining_shots: number }>(
+  const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; upload_token: string; remaining_shots: number }>(
     `/api/v1/guest/${slug}/uploads/presign`,
     {
       method: "POST",
@@ -259,12 +259,11 @@ export async function uploadGuestPhoto(slug: string, accessToken: string, file: 
     }
   );
 
-  const uploadBody = new FormData();
-  for (const [key, value] of Object.entries(presign.upload_fields)) {
-    uploadBody.append(key, value);
-  }
-  uploadBody.append("file", file);
-  const uploaded = await fetch(presign.upload_url, { method: "POST", body: uploadBody });
+  const uploaded = await fetch(presign.upload_url, {
+    method: "PUT",
+    headers: presign.upload_headers,
+    body: file
+  });
   if (!uploaded.ok) {
     throw new APIError("Upload failed", uploaded.status, "upload_failed");
   }

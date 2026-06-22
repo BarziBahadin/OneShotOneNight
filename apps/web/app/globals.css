@@ -229,4 +229,78 @@ input::placeholder, textarea::placeholder {
   textarea.field {
     @apply h-auto;
   }
+
+  .reveal-page {
+    @apply relative min-h-[100svh] overflow-hidden bg-black text-white;
+  }
+
+  .reveal-bg {
+    @apply fixed inset-0 h-full w-full object-cover;
+    object-position: 51% center;
+  }
+
+  .reveal-vignette {
+    @apply fixed inset-0;
+    background:
+      linear-gradient(180deg, rgb(0 0 0 / 0.2) 0%, rgb(0 0 0 / 0.08) 24%, rgb(0 0 0 / 0.68) 52%, rgb(0 0 0 / 0.98) 82%, #050505 100%),
+      linear-gradient(90deg, rgb(0 0 0 / 0.34), transparent 52%, rgb(0 0 0 / 0.14));
+  }
+
+  .reveal-kicker {
+    @apply text-[0.67rem] font-semibold uppercase tracking-[0.19em] text-amber;
+  }
+
+  .reveal-icon-button {
+    @apply inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white backdrop-blur-xl;
+  }
+
+  .reveal-chip {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-black/55 px-4 text-sm font-medium text-white backdrop-blur-xl;
+  }
+
+  .reveal-feature-icon {
+    @apply inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white backdrop-blur-lg;
+  }
+
+  .reveal-actions {
+    @apply fixed bottom-0 left-1/2 z-20 grid w-full max-w-[430px] -translate-x-1/2 gap-3 rounded-t-[2rem] border-t border-white/10 bg-[#0b0908]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-24px_70px_rgb(0_0_0/0.5)] backdrop-blur-2xl;
+  }
+
+  .reveal-primary-action,
+  .reveal-secondary-action,
+  .reveal-open-gallery {
+    @apply inline-flex min-h-14 items-center justify-center gap-3 rounded-full px-5 text-[0.95rem] font-semibold disabled:pointer-events-none disabled:opacity-45;
+  }
+
+  .reveal-primary-action {
+    @apply bg-blue-600 text-white shadow-[0_14px_38px_rgb(37_99_235/0.3)];
+  }
+
+  .reveal-primary-action:hover { @apply bg-blue-500; }
+
+  .reveal-secondary-action {
+    @apply border border-white/10 bg-white/[0.055] text-white;
+  }
+
+  .reveal-secondary-action:hover { @apply bg-white/10; }
+
+  .reveal-open-gallery {
+    @apply w-full bg-amber text-black;
+  }
+
+  .reveal-notice {
+    @apply flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-4 py-3 text-center text-sm backdrop-blur-xl;
+  }
+
+  .reveal-info-sheet {
+    @apply rounded-t-[2rem] border border-white/10 bg-[#0b0a09]/95 px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-7 text-white shadow-[0_-30px_80px_rgb(0_0_0/0.65)] backdrop-blur-2xl;
+  }
+
+  .reveal-dialog {
+    @apply rounded-[2rem] border border-white/10 bg-black/70 text-white shadow-2xl backdrop-blur-2xl;
+  }
+
+  .reveal-light-button {
+    @apply rounded-full bg-white px-6 py-3 text-sm font-semibold text-black;
+  }
 }

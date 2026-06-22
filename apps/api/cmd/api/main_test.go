@@ -33,31 +33,29 @@ func TestValidateConfigRejectsDevelopmentDefaults(t *testing.T) {
 		t.Fatalf("got %v, want default admin password rejection", err)
 	}
 	cfg.AdminPassword = "a-long-random-admin-password"
-	cfg.RedisPassword = ""
-	if err := validateConfig(cfg); err == nil || !strings.Contains(err.Error(), "REDIS_PASSWORD") {
-		t.Fatalf("got %v, want missing Redis password rejection", err)
+	cfg.DatabaseURL = ""
+	if err := validateConfig(cfg); err == nil || !strings.Contains(err.Error(), "DATABASE_URL") {
+		t.Fatalf("got %v, want missing database URL rejection", err)
 	}
 }
 
 func validProductionConfig() config.Config {
 	return config.Config{
-		AppEnv:            "production",
-		PublicWebURL:      "https://example.test",
-		CORSOrigins:       []string{"https://example.test"},
-		DataBackend:       "redis",
-		RedisPassword:     "a-long-random-redis-password",
-		RedisAddr:         "redis.example.test:6379",
-		RedisTLS:          true,
-		TokenPepper:       "a-long-random-production-token-pepper",
-		AdminPasswordHash: "$2a$10$7EqJtq98hPqEX7fNZaFWoO7QXD4i5Vq9pM7hLsr9uDGC0yQG0xGqG",
-		AdminSessionTTL:   12 * time.Hour,
-		GuestCookieTTL:    30 * 24 * time.Hour,
-		CookieSecure:      true,
-		S3Endpoint:        "https://s3.example.test",
-		S3Region:          "us-east-1",
-		S3Bucket:          "photos",
-		S3AccessKey:       "prod-access-key",
-		S3SecretKey:       "prod-secret-key",
-		MaxUploadBytes:    10 << 20,
+		AppEnv:                   "production",
+		PublicWebURL:             "https://example.test",
+		CORSOrigins:              []string{"https://example.test"},
+		DatabaseURL:              "postgresql://app:secret@db.example.test:5432/postgres?sslmode=require",
+		DBMaxConnections:         10,
+		TokenPepper:              "a-long-random-production-token-pepper",
+		AdminPasswordHash:        "$2a$10$7EqJtq98hPqEX7fNZaFWoO7QXD4i5Vq9pM7hLsr9uDGC0yQG0xGqG",
+		AdminSessionTTL:          12 * time.Hour,
+		GuestCookieTTL:           30 * 24 * time.Hour,
+		CookieSecure:             true,
+		SupabaseStorageEndpoint:  "https://project.storage.supabase.co/storage/v1/s3",
+		SupabaseStorageRegion:    "us-east-1",
+		SupabaseStorageBucket:    "photos",
+		SupabaseStorageAccessKey: "prod-access-key",
+		SupabaseStorageSecretKey: "prod-secret-key",
+		MaxUploadBytes:           10 << 20,
 	}
 }

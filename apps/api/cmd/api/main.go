@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,7 +15,7 @@ import (
 	"oneshotonenight/api/internal/application"
 	"oneshotonenight/api/internal/infra/config"
 	httpapi "oneshotonenight/api/internal/infra/http"
-	redisinfra "oneshotonenight/api/internal/infra/redis"
+	postgresinfra "oneshotonenight/api/internal/infra/postgres"
 	"oneshotonenight/api/internal/infra/storage"
 )
 
@@ -31,14 +30,19 @@ func main() {
 		log.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
-	redisClient := redisinfra.NewClient(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB, cfg.RedisTLS)
-	store := redisinfra.NewStore(redisClient)
+	pool, err := postgresinfra.NewPool(context.Background(), cfg.DatabaseURL, int32(cfg.DBMaxConnections))
+	if err != nil {
+		log.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+	store := postgresinfra.NewStore(pool)
 	svc := application.NewService(application.NewServiceInput{
 		Events: store.Events(), Guests: store.Guests(), Photos: store.Photos(), Idempotency: store.Idempotency(), Uploads: store.Uploads(),
 		AdminSessions: store.AdminSessions(),
 		Storage: storage.PresignedStorage{
-			Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
-			AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, UsePathStyle: cfg.S3UsePathStyle,
+			Endpoint: cfg.SupabaseStorageEndpoint, Region: cfg.SupabaseStorageRegion, Bucket: cfg.SupabaseStorageBucket,
+			AccessKey: cfg.SupabaseStorageAccessKey, SecretKey: cfg.SupabaseStorageSecretKey, UsePathStyle: true,
 		},
 		Pepper: cfg.TokenPepper, GuestURLBase: cfg.PublicWebURL, MaxBytes: cfg.MaxUploadBytes,
 		DisableGuestTokens: cfg.DisableGuestTokens, AdminPassword: cfg.AdminPassword, AdminPasswordHash: cfg.AdminPasswordHash, AdminSessionTTL: cfg.AdminSessionTTL,
@@ -73,7 +77,6 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = server.Shutdown(ctx)
-	_ = redisClient.Close()
 	log.Info("api stopped")
 }
 
@@ -97,17 +100,14 @@ func validateConfig(cfg config.Config) error {
 	if cfg.AdminPasswordHash != "" && !strings.HasPrefix(cfg.AdminPasswordHash, "$2") {
 		return fmt.Errorf("ADMIN_PASSWORD_HASH must be a bcrypt hash")
 	}
-	if cfg.RedisPassword == "" {
-		return fmt.Errorf("REDIS_PASSWORD must be set")
+	if !isPostgresURL(cfg.DatabaseURL) {
+		return fmt.Errorf("DATABASE_URL must be a PostgreSQL connection URL")
 	}
-	if cfg.S3AccessKey == "" || cfg.S3SecretKey == "" || cfg.S3AccessKey == "minioadmin" || cfg.S3SecretKey == "minioadmin" {
-		return fmt.Errorf("S3 credentials must be set to non-default values")
+	if cfg.DBMaxConnections < 1 || cfg.DBMaxConnections > 50 {
+		return fmt.Errorf("DB_MAX_CONNECTIONS must be between 1 and 50")
 	}
-	if strings.TrimSpace(cfg.RedisAddr) == "" {
-		return fmt.Errorf("REDIS_ADDR must be set")
-	}
-	if cfg.DataBackend != "redis" {
-		return fmt.Errorf("DATA_BACKEND=%s is not implemented by the runtime", cfg.DataBackend)
+	if cfg.SupabaseStorageAccessKey == "" || cfg.SupabaseStorageSecretKey == "" {
+		return fmt.Errorf("Supabase Storage S3 credentials must be set")
 	}
 	if cfg.AdminSessionTTL <= 0 || cfg.AdminSessionTTL > 30*24*time.Hour {
 		return fmt.Errorf("ADMIN_SESSION_TTL_HOURS must be between 1 and 720")
@@ -121,8 +121,8 @@ func validateConfig(cfg config.Config) error {
 	if !isHTTPURL(cfg.PublicWebURL) {
 		return fmt.Errorf("PUBLIC_WEB_URL must be an HTTP or HTTPS URL")
 	}
-	if !isHTTPURL(cfg.S3Endpoint) || cfg.S3Bucket == "" || cfg.S3Region == "" {
-		return fmt.Errorf("S3 endpoint, bucket, and region must be configured")
+	if !isHTTPURL(cfg.SupabaseStorageEndpoint) || cfg.SupabaseStorageBucket == "" || cfg.SupabaseStorageRegion == "" {
+		return fmt.Errorf("Supabase Storage endpoint, bucket, and region must be configured")
 	}
 	if cfg.AppEnv != "production" {
 		return nil
@@ -142,11 +142,11 @@ func validateConfig(cfg config.Config) error {
 	if !isHTTPSURL(cfg.PublicWebURL) {
 		return fmt.Errorf("PUBLIC_WEB_URL must be an HTTPS URL in production")
 	}
-	if !isHTTPSURL(cfg.S3Endpoint) {
-		return fmt.Errorf("S3_ENDPOINT must be an HTTPS URL in production")
+	if !isHTTPSURL(cfg.SupabaseStorageEndpoint) {
+		return fmt.Errorf("SUPABASE_STORAGE_ENDPOINT must be an HTTPS URL in production")
 	}
-	if !cfg.RedisTLS && !isLoopbackAddress(cfg.RedisAddr) {
-		return fmt.Errorf("REDIS_TLS must be true for a non-loopback Redis server in production")
+	if parsed, _ := url.Parse(cfg.DatabaseURL); parsed.Query().Get("sslmode") == "disable" {
+		return fmt.Errorf("DATABASE_URL cannot disable TLS in production")
 	}
 	for _, origin := range cfg.CORSOrigins {
 		if !isHTTPSURL(origin) {
@@ -156,18 +156,14 @@ func validateConfig(cfg config.Config) error {
 	return nil
 }
 
-func isLoopbackAddress(address string) bool {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return false
-	}
-	ip := net.ParseIP(host)
-	return host == "localhost" || (ip != nil && ip.IsLoopback())
-}
-
 func isHTTPSURL(raw string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
+}
+
+func isPostgresURL(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	return err == nil && (parsed.Scheme == "postgres" || parsed.Scheme == "postgresql") && parsed.Host != ""
 }
 
 func isHTTPURL(raw string) bool {

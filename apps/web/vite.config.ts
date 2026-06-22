@@ -1,4 +1,4 @@
-import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { networkInterfaces } from "node:os";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig, loadEnv, type Plugin } from "vite";
@@ -52,11 +52,6 @@ function localBackend(rootEnv: Record<string, string>): Plugin {
     apply: "serve",
     async configureServer(server) {
       if (await apiIsHealthy()) return;
-
-      spawnSync("docker", ["compose", "-f", `${projectRoot}/deployments/docker-compose.yml`, "up", "-d"], {
-        cwd: projectRoot,
-        stdio: "inherit"
-      });
 
       api = spawn("go", ["run", "./cmd/api"], {
         cwd: apiRoot,

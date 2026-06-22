@@ -61,7 +61,7 @@ type ObjectInfo struct {
 }
 
 type ObjectStorage interface {
-	PresignPost(ctx context.Context, objectKey, contentType string, maxBytes int64, expires time.Duration) (string, map[string]string, error)
+	PresignPut(ctx context.Context, objectKey, contentType string, expires time.Duration) (string, map[string]string, error)
 	Head(ctx context.Context, objectKey string) (*ObjectInfo, error)
 	Open(ctx context.Context, objectKey string) (io.ReadCloser, error)
 	PublicURL(ctx context.Context, objectKey string) (string, error)

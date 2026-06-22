@@ -4,7 +4,7 @@
   the browser exchanges it for an HttpOnly guest cookie and removes it from the
   address bar.
 - Event capabilities are derived from the server pepper plus a non-secret rotation
-  version. Redis stores the rotation version and peppered hash, never the plaintext
+  version. Postgres stores the rotation version and peppered hash, never the plaintext
   capability or capability URL.
 - Startup rotates legacy plaintext links and automatically reconciles event hashes
   after a pepper rotation. Existing printed links must be replaced after either migration.
@@ -13,10 +13,11 @@
 - Clearing browser data, using private browsing, or switching devices creates a new guest identity in the MVP.
 - Add optional phone OTP or email magic link later for stronger identity.
 - Do not use invasive fingerprinting as an identity control.
-- Store image binaries only in S3-compatible object storage.
-- Browser uploads use signed POST policies that enforce the exact MIME type and a
-  content-length range before object storage accepts the file.
-- New objects land under `pending/`, are copied to their final key only after
-  verification, and are removed by a one-day lifecycle rule if registration is abandoned.
-- Login, upload, registration, and gallery limits use atomic Redis counters so they
+- Store image binaries only in the private Supabase Storage bucket.
+- Browser uploads use short-lived signed PUT URLs bound to the object path and MIME
+  type. The bucket and API enforce the maximum file size, and registration verifies
+  the stored size, MIME type, and image signature.
+- New objects land under `pending/` and are copied to their final key only after
+  verification.
+- Login, upload, registration, and gallery limits use atomic PostgreSQL writes so they
   survive API restarts and apply across instances.

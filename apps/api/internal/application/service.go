@@ -675,7 +675,7 @@ type PresignOutput struct {
 	PhotoID        string            `json:"photo_id"`
 	ObjectKey      string            `json:"object_key"`
 	UploadURL      string            `json:"upload_url"`
-	UploadFields   map[string]string `json:"upload_fields"`
+	UploadHeaders  map[string]string `json:"upload_headers"`
 	UploadToken    string            `json:"upload_token"`
 	RemainingShots int               `json:"remaining_shots"`
 }
@@ -709,7 +709,7 @@ func (s *Service) PresignUpload(ctx context.Context, in PresignInput) (*PresignO
 	}
 	photoID := ulid.Make().String()
 	objectKey := fmt.Sprintf("pending/events/%s/photos/%s/%s", joined.Event.ID, joined.Guest.ID, photoID)
-	url, fields, err := s.storage.PresignPost(ctx, objectKey, in.ContentType, in.SizeBytes, 10*time.Minute)
+	url, headers, err := s.storage.PresignPut(ctx, objectKey, in.ContentType, 10*time.Minute)
 	if err != nil {
 		return nil, err
 	}
@@ -724,7 +724,7 @@ func (s *Service) PresignUpload(ctx context.Context, in PresignInput) (*PresignO
 	}, 15*time.Minute); err != nil {
 		return nil, err
 	}
-	return &PresignOutput{PhotoID: photoID, ObjectKey: objectKey, UploadURL: url, UploadFields: fields, UploadToken: uploadToken, RemainingShots: remaining(joined.Event, joined.Guest)}, nil
+	return &PresignOutput{PhotoID: photoID, ObjectKey: objectKey, UploadURL: url, UploadHeaders: headers, UploadToken: uploadToken, RemainingShots: remaining(joined.Event, joined.Guest)}, nil
 }
 
 type RegisterPhotoInput struct {

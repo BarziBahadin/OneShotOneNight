@@ -9,34 +9,30 @@ import (
 )
 
 type Config struct {
-	AppEnv             string
-	HTTPAddr           string
-	PublicWebURL       string
-	CORSOrigins        []string
-	TrustedProxies     []string
-	DataBackend        string
-	RedisAddr          string
-	RedisPassword      string
-	RedisTLS           bool
-	RedisDB            int
-	TokenPepper        string
-	AdminPassword      string
-	AdminPasswordHash  string
-	AdminSessionTTL    time.Duration
-	DisableGuestTokens bool
-	CookieSecure       bool
-	GuestCookieTTL     time.Duration
-	S3Endpoint         string
-	S3Region           string
-	S3Bucket           string
-	S3AccessKey        string
-	S3SecretKey        string
-	S3UsePathStyle     bool
-	MaxUploadBytes     int64
+	AppEnv                   string
+	HTTPAddr                 string
+	PublicWebURL             string
+	CORSOrigins              []string
+	TrustedProxies           []string
+	DatabaseURL              string
+	DBMaxConnections         int
+	TokenPepper              string
+	AdminPassword            string
+	AdminPasswordHash        string
+	AdminSessionTTL          time.Duration
+	DisableGuestTokens       bool
+	CookieSecure             bool
+	GuestCookieTTL           time.Duration
+	SupabaseStorageEndpoint  string
+	SupabaseStorageRegion    string
+	SupabaseStorageBucket    string
+	SupabaseStorageAccessKey string
+	SupabaseStorageSecretKey string
+	MaxUploadBytes           int64
 }
 
 func Load() (Config, error) {
-	redisDB, err := getInt("REDIS_DB", 0)
+	dbMaxConnections, err := getInt("DB_MAX_CONNECTIONS", 10)
 	if err != nil {
 		return Config{}, err
 	}
@@ -52,10 +48,6 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	redisTLS, err := getBool("REDIS_TLS", false)
-	if err != nil {
-		return Config{}, err
-	}
 	disableGuestTokens, err := getBool("DISABLE_GUEST_TOKENS", false)
 	if err != nil {
 		return Config{}, err
@@ -64,36 +56,27 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	s3PathStyle, err := getBool("S3_USE_PATH_STYLE", true)
-	if err != nil {
-		return Config{}, err
-	}
-
 	return Config{
-		AppEnv:             get("APP_ENV", "development"),
-		HTTPAddr:           get("HTTP_ADDR", "127.0.0.1:8080"),
-		PublicWebURL:       get("PUBLIC_WEB_URL", "http://localhost:3000"),
-		CORSOrigins:        split(get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")),
-		TrustedProxies:     split(get("TRUSTED_PROXIES", "")),
-		DataBackend:        get("DATA_BACKEND", "redis"),
-		RedisAddr:          get("REDIS_ADDR", "localhost:6379"),
-		RedisPassword:      get("REDIS_PASSWORD", ""),
-		RedisTLS:           redisTLS,
-		RedisDB:            redisDB,
-		TokenPepper:        get("TOKEN_PEPPER", ""),
-		AdminPassword:      get("ADMIN_PASSWORD", ""),
-		AdminPasswordHash:  get("ADMIN_PASSWORD_HASH", ""),
-		AdminSessionTTL:    time.Duration(adminTTLHours) * time.Hour,
-		DisableGuestTokens: disableGuestTokens,
-		CookieSecure:       cookieSecure,
-		GuestCookieTTL:     time.Duration(guestTTLHours) * time.Hour,
-		S3Endpoint:         get("S3_ENDPOINT", "http://localhost:9000"),
-		S3Region:           get("S3_REGION", "us-east-1"),
-		S3Bucket:           get("S3_BUCKET", "oneshotonenight"),
-		S3AccessKey:        get("S3_ACCESS_KEY", ""),
-		S3SecretKey:        get("S3_SECRET_KEY", ""),
-		S3UsePathStyle:     s3PathStyle,
-		MaxUploadBytes:     int64(maxUploadBytes),
+		AppEnv:                   get("APP_ENV", "development"),
+		HTTPAddr:                 get("HTTP_ADDR", "127.0.0.1:8080"),
+		PublicWebURL:             get("PUBLIC_WEB_URL", "http://localhost:3000"),
+		CORSOrigins:              split(get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")),
+		TrustedProxies:           split(get("TRUSTED_PROXIES", "")),
+		DatabaseURL:              get("DATABASE_URL", ""),
+		DBMaxConnections:         dbMaxConnections,
+		TokenPepper:              get("TOKEN_PEPPER", ""),
+		AdminPassword:            get("ADMIN_PASSWORD", ""),
+		AdminPasswordHash:        get("ADMIN_PASSWORD_HASH", ""),
+		AdminSessionTTL:          time.Duration(adminTTLHours) * time.Hour,
+		DisableGuestTokens:       disableGuestTokens,
+		CookieSecure:             cookieSecure,
+		GuestCookieTTL:           time.Duration(guestTTLHours) * time.Hour,
+		SupabaseStorageEndpoint:  get("SUPABASE_STORAGE_ENDPOINT", ""),
+		SupabaseStorageRegion:    get("SUPABASE_STORAGE_REGION", ""),
+		SupabaseStorageBucket:    get("SUPABASE_STORAGE_BUCKET", "oneshotonenight"),
+		SupabaseStorageAccessKey: get("SUPABASE_STORAGE_ACCESS_KEY", ""),
+		SupabaseStorageSecretKey: get("SUPABASE_STORAGE_SECRET_KEY", ""),
+		MaxUploadBytes:           int64(maxUploadBytes),
 	}, nil
 }
 

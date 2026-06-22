@@ -7,18 +7,17 @@ Guests scan a static event QR code, open a private web guest page, take or choos
 ## Stack
 
 - `apps/web`: Vite, React, React Router, TypeScript, Tailwind CSS, PWA metadata, service worker.
-- `apps/api`: Go, `net/http`, `go-chi/chi`, Redis-backed repositories, S3-compatible object storage.
-- `deployments`: local Redis and MinIO via Docker Compose.
-- `apps/api/migrations/mysql`: planned durable MySQL schema. The current runtime still uses Redis repositories; do not treat MySQL mode as production-ready until repository support is implemented.
+- `apps/api`: Go, `net/http`, `go-chi/chi`, Supabase Postgres, and Supabase Storage.
+- `supabase`: database schema and private Storage bucket migration.
 
 ## Local Setup
 
 Prerequisites:
 
-- Docker Desktop
 - Go
 - Node
 - Web dependencies installed in `apps/web`
+- A Supabase project with Database and Storage enabled
 
 First-time setup:
 
@@ -27,6 +26,16 @@ cp .env.example .env
 cd apps/web
 npm install
 cd ../..
+```
+
+Fill the Supabase database URL and Storage S3 credentials in `.env`. Get the session-pooler URL from **Connect**, then enable S3 and generate server-only access keys under **Storage → Configuration → S3**.
+
+Apply the schema:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push
 ```
 
 Start the app:
@@ -41,7 +50,7 @@ Restart a running dev server:
 ./dev restart
 ```
 
-`./dev` starts Vite on port `3000`. Vite starts Redis/MinIO with Docker Compose and launches the Go API on port `8080` when needed. Browser API requests go through Vite, so frontend code calls `/api/...` and Vite proxies to Go.
+`./dev` starts Vite on port `3000` and launches the Go API on port `8080`. Browser API requests go through Vite, so frontend code calls `/api/...` and Vite proxies to Go.
 
 If Vite is already running, `./dev` prints the current local and network URLs instead of crashing.
 
@@ -77,10 +86,12 @@ CORS_ORIGINS=https://your-domain.com
 COOKIE_SECURE=true
 ADMIN_PASSWORD_HASH=$2b$...
 TOKEN_PEPPER=<long-random-secret>
-REDIS_PASSWORD=<long-random-secret>
-REDIS_TLS=true
-S3_ACCESS_KEY=<production-access-key>
-S3_SECRET_KEY=<production-secret-key>
+DATABASE_URL=postgresql://...
+DB_MAX_CONNECTIONS=10
+SUPABASE_STORAGE_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
+SUPABASE_STORAGE_REGION=<project-region>
+SUPABASE_STORAGE_ACCESS_KEY=<server-only-access-key>
+SUPABASE_STORAGE_SECRET_KEY=<server-only-secret-key>
 ```
 
 If the API runs behind a reverse proxy, set `TRUSTED_PROXIES` to the proxy IP or CIDR before relying on `X-Forwarded-For` for rate limiting.
@@ -161,9 +172,9 @@ Expected:
 
 ## Architecture Notes
 
-The API keeps domain logic independent of Redis and S3-compatible storage. Redis is the current MVP data backend; MySQL migrations exist for planned durable storage, but MySQL and dual-write runtime modes are not implemented yet.
+The API keeps domain logic independent of PostgreSQL and S3-compatible storage. Application tables live in a non-exposed `private` schema; the Go API is the only supported data-access path. Photos live in a private Supabase Storage bucket and are served through short-lived signed URLs.
 
 Image binaries upload directly to object storage through presigned URLs. The API stores metadata and object keys, and streams ZIP downloads from object storage for hosts.
 
-Guest identity never uses MAC addresses or invasive fingerprinting. Guests receive a cryptographically random token in an HttpOnly cookie; the server stores only a peppered hash. Invitation capabilities are exchanged for that cookie and removed from the browser address bar. Redis stores a non-secret rotation version instead of the plaintext invitation token.
+Guest identity never uses MAC addresses or invasive fingerprinting. Guests receive a cryptographically random token in an HttpOnly cookie; the server stores only a peppered hash. Invitation capabilities are exchanged for that cookie and removed from the browser address bar. Postgres stores a non-secret rotation version instead of the plaintext invitation token.
 # OneShotOneNight

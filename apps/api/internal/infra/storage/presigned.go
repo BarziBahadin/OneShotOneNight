@@ -25,28 +25,23 @@ type PresignedStorage struct {
 	client       *s3.Client
 }
 
-func (s PresignedStorage) PresignPost(ctx context.Context, objectKey, contentType string, maxBytes int64, expires time.Duration) (string, map[string]string, error) {
+func (s PresignedStorage) PresignPut(ctx context.Context, objectKey, contentType string, expires time.Duration) (string, map[string]string, error) {
 	client, err := s.s3Client(ctx)
 	if err != nil {
 		return "", nil, err
 	}
 	presigner := s3.NewPresignClient(client)
-	out, err := presigner.PresignPostObject(ctx, &s3.PutObjectInput{
+	out, err := presigner.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.Bucket),
 		Key:         aws.String(objectKey),
 		ContentType: aws.String(contentType),
-	}, func(options *s3.PresignPostOptions) {
+	}, func(options *s3.PresignOptions) {
 		options.Expires = expires
-		options.Conditions = []any{
-			[]any{"content-length-range", 1, maxBytes},
-			map[string]string{"Content-Type": contentType},
-		}
 	})
 	if err != nil {
 		return "", nil, err
 	}
-	out.Values["Content-Type"] = contentType
-	return out.URL, out.Values, nil
+	return out.URL, map[string]string{"Content-Type": contentType}, nil
 }
 
 func (s PresignedStorage) PublicURL(ctx context.Context, objectKey string) (string, error) {
