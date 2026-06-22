@@ -1,11 +1,14 @@
-const VERSION = "oneshotonenight-v3";
+const VERSION = "oneshotonenight-v4";
 const APP_SHELL_CACHE = `${VERSION}-app-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/icon.svg",
+  "/app-icon-192.png",
+  "/app-icon-512.png",
+  "/apple-touch-icon.png",
+  "/favicon-32.png",
   "/admin/login"
 ];
 
@@ -33,7 +36,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/assets/") || url.pathname.endsWith(".js") || url.pathname.endsWith(".css") || url.pathname.endsWith(".svg")) {
+  if (url.pathname.startsWith("/assets/") || url.pathname.endsWith(".js") || url.pathname.endsWith(".css") || url.pathname.endsWith(".svg") || url.pathname.endsWith(".png")) {
     event.respondWith(cacheFirst(request));
     return;
   }

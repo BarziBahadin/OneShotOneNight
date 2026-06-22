@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Aperture, ArrowRight, CalendarDays, Camera, Images, QrCode, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, Camera, Images, QrCode, ShieldCheck, Users } from "lucide-react";
 
 const metrics = [
   ["0 accounts", "Guests join from the QR code"],
@@ -28,9 +28,7 @@ export default function HomePage() {
     <main className="app-frame flex flex-col gap-10">
       <nav className="flex flex-wrap items-center justify-between gap-3 border-b hairline pb-5">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border hairline bg-white/5">
-            <Aperture className="h-5 w-5 text-amber" aria-hidden="true" />
-          </span>
+          <img src="/app-icon-192.png" alt="" className="h-10 w-10 rounded-xl object-cover shadow-[0_0_18px_rgba(36,99,235,0.24)]" aria-hidden="true" />
           <span>OneShotOneNight</span>
         </Link>
         <div className="flex flex-wrap gap-2">

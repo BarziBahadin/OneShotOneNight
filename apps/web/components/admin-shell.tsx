@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Aperture, LogOut, Plus } from "lucide-react";
+import { LogOut, Plus } from "lucide-react";
 import { adminLogout } from "@/lib/api";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -23,9 +23,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <main className="app-frame">
       <header className="mb-12 flex items-center justify-between gap-4 border-b hairline pb-5">
         <Link to="/admin" className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border hairline bg-white/5">
-            <Aperture className="h-5 w-5 text-amber" />
-          </span>
+          <img src="/app-icon-192.png" alt="" className="h-10 w-10 rounded-xl object-cover shadow-[0_0_18px_rgba(36,99,235,0.24)]" aria-hidden="true" />
           <div>
             <p className="text-sm font-bold tracking-tight">OneShotOneNight</p>
             <p className="text-xs text-moss">Host studio</p>

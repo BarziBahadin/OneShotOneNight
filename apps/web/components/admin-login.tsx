@@ -32,7 +32,10 @@ export function AdminLogin() {
       <div className="grid overflow-hidden rounded-[2rem] border hairline bg-white/[0.025] shadow-[0_40px_120px_rgba(0,0,0,0.35)] lg:grid-cols-[1.1fr_0.9fr]">
         <section className="relative hidden min-h-[620px] overflow-hidden bg-coral p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/65">OneShotOneNight</p>
+          <div className="relative flex items-center gap-3">
+            <img src="/app-icon-192.png" alt="" className="h-11 w-11 rounded-xl object-cover shadow-[0_0_24px_rgba(37,99,235,0.36)]" aria-hidden="true" />
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/65">OneShotOneNight</p>
+          </div>
           <div className="relative">
             <p className="max-w-sm font-['Playfair_Display'] text-6xl font-semibold leading-[0.95]">The night belongs to everyone.</p>
             <p className="mt-6 max-w-sm leading-7 text-white/70">One private camera. Every point of view. A gallery waiting at the end.</p>
