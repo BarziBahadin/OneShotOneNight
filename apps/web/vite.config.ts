@@ -8,7 +8,9 @@ const projectRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const rootEnv = loadEnv(mode, projectRoot, "");
-  const publicWebURL = usablePublicURL(rootEnv.PUBLIC_WEB_URL) ?? `http://${lanAddress()}:3000`;
+  const configuredPublicURL = process.env.VITE_PUBLIC_WEB_URL ?? rootEnv.VITE_PUBLIC_WEB_URL ?? rootEnv.PUBLIC_WEB_URL;
+  const publicWebURL = usablePublicURL(configuredPublicURL)
+    ?? (mode === "production" ? "https://one-shot-one-night.vercel.app" : `http://${lanAddress()}:3000`);
 
   return {
     plugins: [react()],
