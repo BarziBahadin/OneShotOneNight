@@ -25,6 +25,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
   const [lastUpload, setLastUpload] = useState("");
   const [showInfo, setShowInfo] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [guestName, setGuestName] = useState("");
   const autoJoinAttempted = useRef(false);
   const cameraInput = useRef<HTMLInputElement>(null);
   const libraryInput = useRef<HTMLInputElement>(null);
@@ -70,11 +71,16 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
 
   async function uploadPhoto(file: File) {
     if (!file.size) return;
+    const displayName = guestName.trim();
+    if (!displayName) {
+      setStatus("Please enter your name before sharing a photo.");
+      return;
+    }
     setUploading(true);
     setStatus("");
     setLastUpload("");
     try {
-      const out = await uploadGuestPhoto(slug, activeToken, file, "");
+      const out = await uploadGuestPhoto(slug, activeToken, file, "", displayName);
       setRemaining(out.remaining_shots);
       setLastUpload("Your photo is safely stored for the reveal.");
     } catch (err) {
@@ -116,6 +122,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
   const shotsUsed = Math.max(maxShots - shotsRemaining, 0);
   const usedPercent = maxShots > 0 ? Math.min((shotsUsed / maxShots) * 100, 100) : 0;
   const countdown = revealCountdown(event.reveal_at, now);
+  const canUpload = Boolean(guestName.trim()) && !uploading && shotsRemaining > 0;
 
   return (
     <main className="reveal-page">
@@ -168,11 +175,27 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
             </div>
           </section>
 
-          <section className="reveal-actions mt-8">
-            <button type="button" disabled={uploading || shotsRemaining === 0} onClick={() => cameraInput.current?.click()} className="reveal-primary-action">
+          <section className="mt-8 grid gap-3" aria-label="Guest information">
+            <label htmlFor="guest-name" className="text-sm font-semibold text-white/82">Who is sharing this beautiful moment?</label>
+            <input
+              id="guest-name"
+              value={guestName}
+              onChange={(inputEvent) => setGuestName(inputEvent.target.value)}
+              type="text"
+              inputMode="text"
+              autoComplete="name"
+              maxLength={100}
+              placeholder="Please enter your name here"
+              className="min-h-14 rounded-2xl border border-white/12 bg-black/48 px-4 text-base font-medium text-white outline-none backdrop-blur-xl transition placeholder:text-white/36 focus:border-blue-400/70 focus:ring-4 focus:ring-blue-500/18"
+            />
+            <p className="text-xs leading-5 text-white/46">This helps the host know who to thank for each photo.</p>
+          </section>
+
+          <section className="reveal-actions mt-6">
+            <button type="button" disabled={!canUpload} onClick={() => cameraInput.current?.click()} className="reveal-primary-action">
               <Camera className="h-6 w-6" /> {uploading ? "Uploading…" : "Take a photo"}
             </button>
-            <button type="button" disabled={uploading || shotsRemaining === 0} onClick={() => libraryInput.current?.click()} className="reveal-secondary-action">
+            <button type="button" disabled={!canUpload} onClick={() => libraryInput.current?.click()} className="reveal-secondary-action">
               <Images className="h-6 w-6" /> Choose from library
             </button>
             <input ref={cameraInput} onChange={onPhotoSelected} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" className="sr-only" />

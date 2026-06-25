@@ -19,6 +19,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const [results, setResults] = useState<UploadResult[]>([]);
   const [batchTotal, setBatchTotal] = useState(0);
   const [batchDone, setBatchDone] = useState(0);
+  const [guestName, setGuestName] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const autoJoinAttempted = useRef(false);
   const activeToken = useMemo(() => normalizeToken(accessToken) || storedGuestAccessToken(slug), [accessToken, slug]);
@@ -46,6 +47,13 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
 
   async function uploadFiles(files: File[]) {
     if (!files.length || !event) return;
+    const displayName = guestName.trim();
+
+    if (!displayName) {
+      setStatus("Please enter your name before uploading photos.");
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
 
     const availableSlots = remaining ?? event.max_photos_per_guest;
     const uploadableFiles = files.filter((file) => file.size > 0).slice(0, availableSlots);
@@ -66,7 +74,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
 
     for (const file of uploadableFiles) {
       try {
-        const out = await uploadGuestPhoto(slug, activeToken, file, "");
+        const out = await uploadGuestPhoto(slug, activeToken, file, "", displayName);
         latestRemaining = out.remaining_shots;
         setRemaining(out.remaining_shots);
         nextResults.push({ name: file.name, ok: true, message: "Uploaded" });
@@ -116,6 +124,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const shotsRemaining = remaining ?? maxPhotos;
   const uploadedCount = Math.max(maxPhotos - shotsRemaining, 0);
   const progress = batchTotal > 0 ? Math.round((batchDone / batchTotal) * 100) : 0;
+  const canUpload = Boolean(guestName.trim()) && !uploading && shotsRemaining > 0;
 
   return (
     <main className="reveal-page">
@@ -135,9 +144,25 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
         </div>
 
         <section className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-black/64 p-4 shadow-[0_24px_70px_rgb(0_0_0/0.42)] backdrop-blur-2xl">
+          <div className="grid gap-3">
+            <label htmlFor="guest-upload-name" className="text-sm font-semibold text-white/82">Who is sharing these beautiful moments?</label>
+            <input
+              id="guest-upload-name"
+              value={guestName}
+              onChange={(inputEvent) => setGuestName(inputEvent.target.value)}
+              type="text"
+              inputMode="text"
+              autoComplete="name"
+              maxLength={100}
+              placeholder="Please enter your name here"
+              className="min-h-14 rounded-2xl border border-white/12 bg-black/48 px-4 text-base font-medium text-white outline-none transition placeholder:text-white/36 focus:border-blue-400/70 focus:ring-4 focus:ring-blue-500/18"
+            />
+            <p className="text-xs leading-5 text-white/46">This helps the host know who to thank for each photo.</p>
+          </div>
+
           <button
             type="button"
-            disabled={uploading || shotsRemaining === 0}
+            disabled={!canUpload}
             onClick={() => fileInput.current?.click()}
             className="grid min-h-48 place-items-center rounded-[1.5rem] border border-dashed border-white/18 bg-white/[0.06] px-5 text-center disabled:pointer-events-none disabled:opacity-45"
           >

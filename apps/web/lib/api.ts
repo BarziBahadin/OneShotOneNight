@@ -275,7 +275,7 @@ export function joinGuest(slug: string, accessToken: string, displayName: string
   });
 }
 
-export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string) {
+export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string, displayName = "") {
   const contentType = file.type || contentTypeFromFileName(file.name);
   const dimensions = await imageDimensions(file);
   const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; upload_token: string; remaining_shots: number }>(
@@ -289,7 +289,8 @@ export async function uploadGuestPhoto(slug: string, accessToken: string, file: 
         content_type: contentType,
         size_bytes: file.size,
         width_px: dimensions?.width,
-        height_px: dimensions?.height
+        height_px: dimensions?.height,
+        display_name: displayName.trim()
       })
     }
   );
@@ -311,6 +312,7 @@ export async function uploadGuestPhoto(slug: string, accessToken: string, file: 
       upload_token: presign.upload_token,
       width_px: dimensions?.width,
       height_px: dimensions?.height,
+      display_name: displayName.trim(),
       message
     })
   });
