@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
 import { Check, Copy, Download, EyeOff, MoreVertical, Play, Settings, Share2, Trash2, UserX } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import {
@@ -44,7 +43,10 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
 
   useEffect(() => {
     if (!detail?.guest_url) return;
-    QRCode.toDataURL(publicWebURL(detail.guest_url), { margin: 1, width: 360 }).then(setQr).catch(() => setQr(""));
+    import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(publicWebURL(detail.guest_url), { margin: 1, width: 360 }))
+      .then(setQr)
+      .catch(() => setQr(""));
   }, [detail?.guest_url]);
 
   async function updateStatus(next: "open" | "locked" | "deleted") {
@@ -205,7 +207,7 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
         </div>
         <div>
         </div>
-        {qr ? <img src={qr} alt="Guest QR code" className="relative mx-auto my-6 aspect-square w-full max-w-64 rounded-[1.5rem] bg-white p-3 shadow-xl" /> : null}
+        {qr ? <img src={qr} alt="Guest QR code" width="360" height="360" decoding="async" className="relative mx-auto my-6 aspect-square w-full max-w-64 rounded-[1.5rem] bg-white p-3 shadow-xl" /> : null}
         <div className="relative grid grid-cols-2 gap-2">
           <button className="rounded-full bg-white px-4 py-3 text-sm font-bold text-black" onClick={shareGuestLink}>
             <Share2 className="mr-1 inline h-4 w-4" /> Share
@@ -248,7 +250,15 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
           <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
             {photos.map((photo) => (
               <article key={photo.id} className="surface mb-4 break-inside-avoid overflow-hidden">
-                <img src={photo.public_url} alt={photo.message || "Event upload"} className="w-full bg-skywash object-cover" />
+                <img
+                  src={photo.thumbnail_url || photo.public_url}
+                  alt={photo.message || "Event upload"}
+                  width={photo.width_px || 768}
+                  height={photo.height_px || 1024}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full bg-skywash object-cover"
+                />
                 <div className="grid gap-3 p-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="rounded-md bg-skywash px-2 py-1 font-semibold">{photo.status}</span>

@@ -73,6 +73,9 @@ export type PhotoRecord = {
   id: string;
   object_key: string;
   public_url?: string;
+  thumbnail_url?: string;
+  width_px?: number;
+  height_px?: number;
   content_type: string;
   size_bytes: number;
   message?: string;
@@ -120,6 +123,10 @@ export class APIError extends Error {
 
 export function isUnauthorizedError(error: unknown) {
   return error instanceof APIError && error.status === 401;
+}
+
+export function hasAdminToken() {
+  return Boolean(localStorage.getItem(adminTokenKey));
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -266,6 +273,7 @@ export function joinGuest(slug: string, accessToken: string, displayName: string
 
 export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string) {
   const contentType = file.type || contentTypeFromFileName(file.name);
+  const dimensions = await imageDimensions(file);
   const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; upload_token: string; remaining_shots: number }>(
     `/api/v1/guest/${slug}/uploads/presign`,
     {
@@ -275,7 +283,9 @@ export async function uploadGuestPhoto(slug: string, accessToken: string, file: 
         access_token: accessToken,
         file_name: file.name,
         content_type: contentType,
-        size_bytes: file.size
+        size_bytes: file.size,
+        width_px: dimensions?.width,
+        height_px: dimensions?.height
       })
     }
   );
@@ -295,9 +305,30 @@ export async function uploadGuestPhoto(slug: string, accessToken: string, file: 
       access_token: accessToken,
       photo_id: presign.photo_id,
       upload_token: presign.upload_token,
+      width_px: dimensions?.width,
+      height_px: dimensions?.height,
       message
     })
   });
+}
+
+async function imageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  if (!file.type.startsWith("image/")) return null;
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    const loaded = new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Unable to decode image dimensions"));
+    });
+    image.src = url;
+    await loaded;
+    return image.naturalWidth && image.naturalHeight ? { width: image.naturalWidth, height: image.naturalHeight } : null;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function randomID() {

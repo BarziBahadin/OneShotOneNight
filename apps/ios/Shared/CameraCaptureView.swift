@@ -36,133 +36,138 @@ struct CameraCaptureView: View {
 
     var body: some View {
         GeometryReader { canvas in
-        let viewportWidth = min(canvas.size.width, UIScreen.main.bounds.width)
-        ZStack {
-            Color.black.ignoresSafeArea()
-            if camera.permissionDenied && !previewMode {
-                ContentUnavailableView("Camera access is off", systemImage: "camera.fill", description: Text("Enable Camera access in Settings to take event photos."))
-            } else {
-                if previewMode {
-                    EventBackdropImage()
-                        .ignoresSafeArea()
+            ZStack {
+                Color.black.ignoresSafeArea()
+
+                if camera.permissionDenied && !previewMode {
+                    ContentUnavailableView(
+                        "Camera access is off",
+                        systemImage: "camera.fill",
+                        description: Text("Enable Camera access in Settings to take event photos.")
+                    )
                 } else {
-                    CameraPreview(session: camera.session).ignoresSafeArea()
-                }
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.72), location: 0),
-                        .init(color: .clear, location: 0.25),
-                        .init(color: .clear, location: 0.62),
-                        .init(color: .black.opacity(0.9), location: 0.82),
-                        .init(color: .black, location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-
-                if gridEnabled { ViewfinderGrid() }
-
-                GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    CameraHeader(eventName: eventName, revealDate: revealDate, now: now) {
-                        dismiss()
-                    } onInfo: {
-                        showsInfo = true
+                    if previewMode {
+                        EventBackdropImage()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .ignoresSafeArea()
+                    } else {
+                        CameraPreview(session: camera.session)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .ignoresSafeArea()
                     }
-                    .frame(width: geometry.size.width)
 
-                    ZStack {
-                        Button { camera.cycleZoom() } label: {
-                            Text(camera.zoomFactor == 1 ? "1×" : "2×")
-                                .font(.subheadline.weight(.bold))
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black.opacity(0.72), location: 0),
+                            .init(color: .clear, location: 0.25),
+                            .init(color: .clear, location: 0.62),
+                            .init(color: .black.opacity(0.9), location: 0.82),
+                            .init(color: .black, location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+
+                    if gridEnabled { ViewfinderGrid() }
+
+                    VStack(spacing: 0) {
+                        CameraHeader(eventName: eventName, revealDate: revealDate, now: now) {
+                            dismiss()
+                        } onInfo: {
+                            showsInfo = true
                         }
-                        .buttonStyle(GlassCircleButton())
-                        .accessibilityLabel("Change zoom")
-
-                        HStack {
-                            Button { camera.toggleFlash() } label: {
-                                Image(systemName: camera.flashEnabled ? "bolt.fill" : "bolt.slash.fill")
-                            }
-                            .buttonStyle(GlassCircleButton())
-                            .accessibilityLabel(camera.flashEnabled ? "Turn flash off" : "Turn flash on")
-
-                            Spacer()
-
-                            Button { gridEnabled.toggle() } label: {
-                                Image(systemName: gridEnabled ? "grid.circle.fill" : "grid.circle")
-                            }
-                            .buttonStyle(GlassCircleButton())
-                            .accessibilityLabel(gridEnabled ? "Hide grid" : "Show grid")
-                        }
-                        .padding(.horizontal, 72)
-                    }
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.top, 26)
-                    .frame(width: geometry.size.width)
-
-                    Spacer()
-
-                    VStack(spacing: 22) {
-                        Text("PHOTO")
-                            .font(.caption.weight(.bold))
-                            .tracking(1.8)
-                            .foregroundStyle(Theme.gold)
-
-                        ShotProgress(remainingShots: remainingShots, maxShots: maxShots)
+                        .frame(maxWidth: .infinity)
 
                         ZStack {
-                            Button { camera.capture() } label: {
-                                ZStack {
-                                    Circle().fill(.white).frame(width: 82, height: 82)
-                                    Circle().stroke(.black.opacity(0.82), lineWidth: 3).frame(width: 70, height: 70)
-                                }
+                            Button { camera.cycleZoom() } label: {
+                                Text(camera.zoomFactor == 1 ? "1×" : "2×")
+                                    .font(.subheadline.weight(.bold))
                             }
-                            .disabled(remainingShots == 0)
-                            .opacity(remainingShots == 0 ? 0.45 : 1)
-                            .accessibilityLabel(remainingShots == 0 ? "No shots remaining" : "Take photo")
+                            .buttonStyle(GlassCircleButton())
+                            .accessibilityLabel("Change zoom")
 
                             HStack {
-                                Button { onOpenGallery?() } label: {
-                                    EventBackdropImage()
-                                        .frame(width: 56, height: 56)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.82), lineWidth: 1.5))
+                                Button { camera.toggleFlash() } label: {
+                                    Image(systemName: camera.flashEnabled ? "bolt.fill" : "bolt.slash.fill")
                                 }
-                                .disabled(onOpenGallery == nil)
-                                .opacity(onOpenGallery == nil ? 0.42 : 1)
-                                .accessibilityLabel(onOpenGallery == nil ? "Album locked until reveal" : "Open event album")
+                                .buttonStyle(GlassCircleButton())
+                                .accessibilityLabel(camera.flashEnabled ? "Turn flash off" : "Turn flash on")
 
                                 Spacer()
 
-                                Button { camera.switchCamera() } label: {
-                                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                                        .font(.title2)
-                                        .foregroundStyle(.white)
-                                        .frame(width: 56, height: 56)
-                                        .background(.white.opacity(0.1), in: Circle())
-                                        .overlay(Circle().stroke(.white.opacity(0.18)))
+                                Button { gridEnabled.toggle() } label: {
+                                    Image(systemName: gridEnabled ? "grid.circle.fill" : "grid.circle")
                                 }
-                                .accessibilityLabel("Switch camera")
+                                .buttonStyle(GlassCircleButton())
+                                .accessibilityLabel(gridEnabled ? "Hide grid" : "Show grid")
                             }
-                            .padding(.horizontal, 66)
+                            .padding(.horizontal, 72)
                         }
-                        .frame(width: geometry.size.width)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.top, 26)
+                        .frame(maxWidth: .infinity)
+
+                        Spacer(minLength: 12)
+
+                        VStack(spacing: 22) {
+                            Text("PHOTO")
+                                .font(.caption.weight(.bold))
+                                .tracking(1.8)
+                                .foregroundStyle(Theme.gold)
+
+                            ShotProgress(remainingShots: remainingShots, maxShots: maxShots)
+
+                            ZStack {
+                                Button { camera.capture() } label: {
+                                    ZStack {
+                                        Circle().fill(.white).frame(width: 82, height: 82)
+                                        Circle().stroke(.black.opacity(0.82), lineWidth: 3).frame(width: 70, height: 70)
+                                    }
+                                }
+                                .disabled(remainingShots == 0)
+                                .opacity(remainingShots == 0 ? 0.45 : 1)
+                                .accessibilityLabel(remainingShots == 0 ? "No shots remaining" : "Take photo")
+
+                                HStack {
+                                    Button { onOpenGallery?() } label: {
+                                        EventBackdropImage()
+                                            .frame(width: 56, height: 56)
+                                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.82), lineWidth: 1.5))
+                                    }
+                                    .disabled(onOpenGallery == nil)
+                                    .opacity(onOpenGallery == nil ? 0.42 : 1)
+                                    .accessibilityLabel(onOpenGallery == nil ? "Album locked until reveal" : "Open event album")
+
+                                    Spacer()
+
+                                    Button { camera.switchCamera() } label: {
+                                        Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
+                                            .font(.title2)
+                                            .foregroundStyle(.white)
+                                            .frame(width: 56, height: 56)
+                                            .background(.white.opacity(0.1), in: Circle())
+                                            .overlay(Circle().stroke(.white.opacity(0.18)))
+                                    }
+                                    .accessibilityLabel("Switch camera")
+                                }
+                                .padding(.horizontal, 66)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .padding(.top, 22)
+                        .padding(.bottom, 18)
+                        .background(.black.opacity(0.86), in: UnevenRoundedRectangle(topLeadingRadius: 36, topTrailingRadius: 36))
+                        .overlay(alignment: .top) {
+                            Rectangle().fill(.white.opacity(0.1)).frame(height: 1)
+                        }
                     }
-                    .padding(.top, 22)
-                    .padding(.bottom, 18)
-                    .background(.black.opacity(0.86), in: UnevenRoundedRectangle(topLeadingRadius: 36, topTrailingRadius: 36))
-                    .overlay(alignment: .top) {
-                        Rectangle().fill(.white.opacity(0.1)).frame(height: 1)
-                    }
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height)
+                    .frame(width: canvas.size.width, height: canvas.size.height)
                 }
             }
-        }
-        .frame(width: viewportWidth, height: canvas.size.height)
-        .clipped()
+            .frame(width: canvas.size.width, height: canvas.size.height)
         }
         .task { if !previewMode { await camera.start() } }
         .onDisappear { if !previewMode { camera.stop() } }
@@ -185,7 +190,10 @@ private struct CameraHeader: View {
     let onInfo: () -> Void
 
     var body: some View {
-        ZStack {
+        HStack(spacing: 12) {
+            Button(action: onClose) { Image(systemName: "xmark").font(.title3.weight(.semibold)) }
+                .buttonStyle(GlassCircleButton())
+
             VStack(spacing: 4) {
                 HStack(spacing: 6) {
                     Text(eventName.uppercased())
@@ -207,19 +215,14 @@ private struct CameraHeader: View {
                         .foregroundStyle(Theme.gold)
                 }
             }
-            .frame(maxWidth: 220)
+            .frame(maxWidth: .infinity)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
 
-            HStack {
-                Button(action: onClose) { Image(systemName: "xmark").font(.title3.weight(.semibold)) }
-                    .buttonStyle(GlassCircleButton())
-
-                Spacer()
-
-                Button(action: onInfo) { Image(systemName: "info.circle").font(.title3.weight(.semibold)) }
-                    .buttonStyle(GlassCircleButton())
-            }
-            .padding(.horizontal, 62)
+            Button(action: onInfo) { Image(systemName: "info.circle").font(.title3.weight(.semibold)) }
+                .buttonStyle(GlassCircleButton())
         }
+        .padding(.horizontal, 16)
         .padding(.top, 8)
     }
 }

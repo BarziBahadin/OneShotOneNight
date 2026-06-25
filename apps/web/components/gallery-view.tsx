@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
 import { ArrowLeft, Camera, Download, QrCode, Share2, X } from "lucide-react";
 import { EventRecord, guestGallery, guestURL, joinGuest, PhotoRecord, rememberGuestAccessToken, storedGuestAccessToken } from "@/lib/api";
 
@@ -40,7 +39,8 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
 
   useEffect(() => {
     if (!showQR) return;
-    QRCode.toDataURL(link, { margin: 1, width: 760, color: { dark: "#030303", light: "#ffffff" } })
+    import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(link, { margin: 1, width: 760, color: { dark: "#030303", light: "#ffffff" } }))
       .then(setQRDataURL)
       .catch(() => setToast("Could not create QR code."));
   }, [showQR, link]);
@@ -128,7 +128,15 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {visiblePhotos.map((photo) => (
                 <figure key={photo.id} className="group relative aspect-[3/4] overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04]">
-                  <img src={photo.public_url} alt={photo.message || "Event photo"} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+                  <img
+                    src={photo.thumbnail_url || photo.public_url}
+                    alt={photo.message || "Event photo"}
+                    width={photo.width_px || 768}
+                    height={photo.height_px || 1024}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                  />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                     <figcaption className="line-clamp-2 text-xs leading-5 text-white/78">{photo.message || formatPhotoDate(photo.created_at)}</figcaption>
                   </div>
@@ -153,7 +161,7 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
               </button>
             </div>
             <div className="rounded-[2rem] bg-white p-5">
-              {qrDataURL ? <img src={qrDataURL} alt={`QR code for ${event?.name ?? "event"}`} className="aspect-square w-full" /> : <div className="grid aspect-square place-items-center text-sm font-bold text-black/50">Creating QR...</div>}
+              {qrDataURL ? <img src={qrDataURL} alt={`QR code for ${event?.name ?? "event"}`} width="760" height="760" decoding="async" className="aspect-square w-full" /> : <div className="grid aspect-square place-items-center text-sm font-bold text-black/50">Creating QR...</div>}
             </div>
             <p className="mt-4 text-center text-sm font-bold text-white">{event?.name ?? "OneShotOneNight"}</p>
             <div className="mt-5 grid grid-cols-2 gap-3">

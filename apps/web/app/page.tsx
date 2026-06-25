@@ -66,7 +66,14 @@ export default function HomePage() {
 
       <section className="grid gap-5 py-10 lg:grid-cols-[1.15fr_0.85fr]">
         <figure className="group relative min-h-[520px] overflow-hidden rounded-[2rem]">
-          <img src="/pics/jonathan-borba-eg-72fI9wK4-unsplash.jpg" alt="Newlyweds celebrating as their guests throw confetti" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]" />
+          <ResponsivePhoto
+            name="jonathan-borba-eg-72fI9wK4-unsplash"
+            width={2400}
+            height={1600}
+            alt="Newlyweds celebrating as their guests throw confetti"
+            sizes="(min-width: 1024px) 58vw, 100vw"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
           <figcaption className="absolute inset-x-0 bottom-0 p-7 sm:p-9">
             <p className="eyebrow">Caught by the people there</p>
@@ -75,12 +82,26 @@ export default function HomePage() {
         </figure>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
           <figure className="relative min-h-64 overflow-hidden rounded-[2rem]">
-            <img src="/pics/golden-event.jpg" alt="Elegant outdoor event table glowing in golden-hour sunlight" className="absolute inset-0 h-full w-full object-cover" />
+            <ResponsivePhoto
+              name="golden-event"
+              width={687}
+              height={1030}
+              alt="Elegant outdoor event table glowing in golden-hour sunlight"
+              sizes="(min-width: 1024px) 34vw, (min-width: 640px) 50vw, 100vw"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
             <figcaption className="absolute bottom-0 p-6 text-xl font-semibold text-white">Before everyone arrives.</figcaption>
           </figure>
           <figure className="relative min-h-64 overflow-hidden rounded-[2rem]">
-            <img src="/pics/andre-hunter-YK46WkDJj8s-unsplash.jpg" alt="Friends celebrating together under colorful party lights" className="absolute inset-0 h-full w-full object-cover" />
+            <ResponsivePhoto
+              name="andre-hunter-YK46WkDJj8s-unsplash"
+              width={2400}
+              height={1601}
+              alt="Friends celebrating together under colorful party lights"
+              sizes="(min-width: 1024px) 34vw, (min-width: 640px) 50vw, 100vw"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
             <figcaption className="absolute bottom-0 p-6 text-xl font-semibold text-white">Long after the lights come on.</figcaption>
           </figure>
@@ -138,18 +159,59 @@ function HeroPhotos() {
   return (
     <div className="relative mx-auto h-[580px] w-full max-w-[680px]" aria-hidden="true">
       <div className="absolute inset-y-4 left-[8%] right-[18%] overflow-hidden rounded-[2rem] shadow-[0_35px_100px_rgba(0,0,0,0.45)]">
-        <img src="/pics/golden-event.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <ResponsivePhoto name="golden-event" width={687} height={1030} alt="" sizes="(min-width: 1024px) 48vw, 88vw" loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-amber/5" />
       </div>
       <div className="absolute right-0 top-14 h-[250px] w-[38%] rotate-3 overflow-hidden rounded-[1.5rem] border-4 border-[#eee7dc] shadow-2xl">
-        <img src="/pics/sujan-khalifa-LO1lToLGGFA-unsplash.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <ResponsivePhoto name="sujan-khalifa-LO1lToLGGFA-unsplash" width={2400} height={3601} alt="" sizes="28vw" className="absolute inset-0 h-full w-full object-cover" />
       </div>
       <div className="absolute bottom-0 left-0 h-[245px] w-[40%] -rotate-3 overflow-hidden rounded-[1.5rem] border-4 border-[#eee7dc] shadow-2xl">
-        <img src="/pics/leonardo-miranda-riHGdvluDk8-unsplash.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <ResponsivePhoto name="leonardo-miranda-riHGdvluDk8-unsplash" width={2400} height={1600} alt="" sizes="28vw" className="absolute inset-0 h-full w-full object-cover" />
       </div>
       <div className="absolute bottom-7 right-4 rounded-full bg-[#eee7dc] px-5 py-3 text-sm font-bold text-[#171411] shadow-xl">
         One QR. Every point of view.
       </div>
     </div>
+  );
+}
+
+function ResponsivePhoto({
+  name,
+  width,
+  height,
+  alt,
+  sizes,
+  className,
+  loading = "lazy",
+  fetchPriority
+}: {
+  name: string;
+  width: number;
+  height: number;
+  alt: string;
+  sizes: string;
+  className?: string;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
+}) {
+  const webp = [640, 960, 1280]
+    .filter((size) => size <= width)
+    .map((size) => `/pics/${name}-${size}.webp ${size}w`)
+    .join(", ");
+
+  return (
+    <picture>
+      <source type="image/webp" srcSet={webp} sizes={sizes} />
+      <img
+        src={`/pics/${name}.jpg`}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={loading}
+        decoding="async"
+        fetchPriority={fetchPriority}
+        className={className}
+      />
+    </picture>
   );
 }
