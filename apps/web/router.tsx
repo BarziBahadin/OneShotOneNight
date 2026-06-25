@@ -15,7 +15,7 @@ const GuestUpload = lazy(() => import("@/components/guest-upload").then((module)
 export function AppRoutes() {
   return (
     <>
-      <RouteRobotsMeta />
+      <RouteDocumentMeta />
       <Suspense fallback={<main className="app-frame grid place-items-center text-moss">Loading...</main>}>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -36,10 +36,10 @@ export function AppRoutes() {
   );
 }
 
-function RouteRobotsMeta() {
+function RouteDocumentMeta() {
   const { pathname } = useLocation();
   useEffect(() => {
-    const privateRoute = pathname.startsWith("/admin") || pathname.startsWith("/guest") || pathname.startsWith("/gallery");
+    const privateRoute = pathname.startsWith("/admin") || pathname.startsWith("/guest");
     const content = privateRoute ? "noindex, nofollow" : "index, follow";
     let meta = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
     if (!meta) {
@@ -48,6 +48,15 @@ function RouteRobotsMeta() {
       document.head.appendChild(meta);
     }
     meta.content = content;
+
+    const canonicalURL = new URL(pathname, "https://one-shot-one-night.vercel.app").toString();
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.appendChild(canonical);
+    }
+    canonical.href = canonicalURL;
   }, [pathname]);
   return null;
 }

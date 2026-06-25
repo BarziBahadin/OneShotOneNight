@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Calendar, Camera, ChevronLeft, ChevronRight, Download, Grid3X3, Heart, Images, MapPin, QrCode, Share2, Users, X } from "lucide-react";
-import { EventRecord, guestGallery, guestURL, joinGuest, PhotoRecord, rememberGuestAccessToken, storedGuestAccessToken } from "@/lib/api";
+import { EventRecord, guestGallery, guestURL, PhotoRecord, rememberGuestAccessToken, storedGuestAccessToken } from "@/lib/api";
 
 type GalleryMode = "classic" | "album";
 
@@ -25,7 +25,6 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
       try {
         if (activeToken) {
           rememberGuestAccessToken(slug, activeToken);
-          await joinGuest(slug, activeToken, "").catch(() => null);
           window.history.replaceState({}, "", `/gallery/${slug}`);
         }
         const out = await guestGallery(slug, activeToken);
@@ -141,7 +140,7 @@ function ClassicGalleryView({
 }) {
   return (
     <main className="relative min-h-[100svh] overflow-hidden bg-[#030303] text-white">
-      <img src="/pics/golden-event.jpg" alt="" className="fixed inset-0 h-full w-full scale-105 object-cover opacity-35 blur-sm" />
+      <img src="/pics/golden-event-640.webp" alt="" width="640" height="960" decoding="async" className="fixed inset-0 h-full w-full scale-105 object-cover opacity-35 blur-sm" />
       <div className="fixed inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.72),rgba(0,0,0,0.25)_34%,rgba(0,0,0,0.98))]" />
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-5xl flex-col px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -191,14 +190,15 @@ function ClassicGalleryView({
             <LockedOrEmptyState locked={locked} message={status} cameraHref={`/guest/${slug}`} />
           ) : (
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {photos.map((photo) => (
+              {photos.map((photo, index) => (
                 <figure key={photo.id} className="group relative aspect-[3/4] overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04]">
                   <img
                     src={photo.thumbnail_url || photo.public_url}
                     alt={photo.message || "Event photo"}
                     width={photo.width_px || 768}
                     height={photo.height_px || 1024}
-                    loading="lazy"
+                    loading={index < 4 ? "eager" : "lazy"}
+                    fetchPriority={index === 0 ? "high" : "auto"}
                     decoding="async"
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
                   />
@@ -389,7 +389,8 @@ function PhotoCard({ photo, index, onOpen }: { photo: PhotoRecord; index: number
           alt={photo.message || `Party memory ${index + 1}`}
           width={photo.width_px || 900}
           height={photo.height_px || (large ? 1200 : 1050)}
-          loading="lazy"
+          loading={index < 4 ? "eager" : "lazy"}
+          fetchPriority={index === 0 ? "high" : "auto"}
           decoding="async"
           className={`w-full object-cover sepia-[0.16] saturate-[0.92] transition duration-700 group-hover:scale-[1.035] ${large ? "aspect-[4/5]" : "aspect-[3/4]"}`}
         />

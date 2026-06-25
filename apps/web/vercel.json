@@ -33,15 +33,6 @@
       ]
     },
     {
-      "source": "/gallery/(.*)",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
-    },
-    {
       "source": "/fonts/(.*)",
       "headers": [
         {
@@ -52,6 +43,15 @@
     },
     {
       "source": "/pics/(.*).webp",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/pics/(.*).jpg",
       "headers": [
         {
           "key": "Cache-Control",
