@@ -10,6 +10,7 @@ const AdminGuard = lazy(() => import("@/components/admin-guard").then((module) =
 const AdminLogin = lazy(() => import("@/components/admin-login").then((module) => ({ default: module.AdminLogin })));
 const GalleryView = lazy(() => import("@/components/gallery-view").then((module) => ({ default: module.GalleryView })));
 const GuestCamera = lazy(() => import("@/components/guest-camera").then((module) => ({ default: module.GuestCamera })));
+const GuestUpload = lazy(() => import("@/components/guest-upload").then((module) => ({ default: module.GuestUpload })));
 
 export function AppRoutes() {
   return (
@@ -26,7 +27,7 @@ export function AppRoutes() {
             <Route path="/admin/events/:id" element={<AdminEventRoute />} />
           </Route>
           <Route path="/guest/:slug" element={<GuestRoute />} />
-          <Route path="/guest-upload/:slug" element={<GuestRoute />} />
+          <Route path="/guest-upload/:slug" element={<GuestUploadRoute />} />
           <Route path="/gallery/:slug" element={<GalleryRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -60,6 +61,12 @@ function GuestRoute() {
   const { slug = "" } = useParams();
   const [search] = useSearchParams();
   return <GuestCamera slug={slug} accessToken={search.get("token") ?? search.get("t") ?? ""} />;
+}
+
+function GuestUploadRoute() {
+  const { slug = "" } = useParams();
+  const [search] = useSearchParams();
+  return <GuestUpload slug={slug} accessToken={search.get("token") ?? search.get("t") ?? ""} />;
 }
 
 function GalleryRoute() {

@@ -201,9 +201,9 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
         <img src="/pics/golden-event.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-24" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/90" />
         <div className="relative">
-          <p className="text-[0.68rem] font-bold uppercase text-white/52">Share QR code</p>
+          <p className="text-[0.68rem] font-bold uppercase text-white/52">Upload QR code</p>
           <h3 className="mt-3 text-4xl font-semibold leading-[0.92]">Scan. Shoot.<br />Remember.</h3>
-          <p className="mt-3 text-sm leading-6 text-white/58">Anyone can join the album by scanning this code. No app download is required.</p>
+          <p className="mt-3 text-sm leading-6 text-white/58">Guests can send one photo or many photos by scanning this code. No app download is required.</p>
         </div>
         <div>
         </div>
@@ -218,7 +218,7 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
         </div>
         <div className="relative mt-3 grid gap-2">
           <button className="btn-ghost px-4 py-3" onClick={onCopied}>
-            <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy guest link"}
+            <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy upload link"}
           </button>
         </div>
         <p className="relative mt-4 break-all text-[0.65rem] text-white/40">{guestLink}</p>

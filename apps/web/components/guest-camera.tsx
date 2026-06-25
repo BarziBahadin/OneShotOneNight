@@ -51,7 +51,6 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
       setEvent(out.event);
       setRemaining(out.remaining_shots);
       setGalleryAvailable(out.gallery_available);
-      window.history.replaceState({}, "", `/guest-upload/${slug}`);
     } catch (err) {
       setStatus(err instanceof Error ? friendlyJoinError(err.message) : "Unable to open this invitation.");
     } finally {
