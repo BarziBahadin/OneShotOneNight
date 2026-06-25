@@ -24,6 +24,15 @@
       ]
     },
     {
+      "source": "/guest-upload/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
       "source": "/gallery/(.*)",
       "headers": [
         {

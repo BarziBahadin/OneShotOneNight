@@ -2,5 +2,5 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /guest/
+Disallow: /guest-upload/
 Disallow: /gallery/
-

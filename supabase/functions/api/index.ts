@@ -3,7 +3,7 @@ import JSZip from "npm:jszip@3.10.1";
 
 const bucket = "oneshotonenight";
 const eventColumns = "id,slug,name,description,mode,status,starts_at,ends_at,reveal_at,max_guests,max_photos_per_guest,allow_gallery_uploads,prefer_camera_capture,allow_immediate_gallery,auto_approve_photos,offline_upload_grace_hours,created_at,updated_at";
-const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "video/mp4", "video/quicktime", "video/webm"]);
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, idempotency-key, x-guest-token", "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS" };
 
 class HTTPError extends Error { constructor(public status: number, message: string, public code = "request_failed") { super(message); } }
@@ -108,7 +108,8 @@ async function adminRoute(req: Request, url: URL, parts: string[], client: Supab
   if (parts[2] === "lock" && req.method === "POST") return setEventStatus(client, eventID, "locked");
   if (parts[2] === "tokens" && parts[3] === "reset" && req.method === "POST") {
     const cfg = await config(client); const version = `v2:${randomToken()}`; const token = await deriveAccessToken(eventID, version, cfg.token_pepper);
-    const { data, error } = await client.from("events").update({ access_token_version: version, access_token_hash: await tokenHash(token, cfg.token_pepper), updated_at: new Date().toISOString() }).eq("id", eventID).select(eventColumns).single();
+    const token_hash = await tokenHash(token, cfg.token_pepper);
+    const { data, error } = await client.from("events").update({ access_token_version: version, access_token_hash: token_hash, guest_upload_token_hash: token_hash, updated_at: new Date().toISOString() }).eq("id", eventID).select(eventColumns).single();
     if (error) throw error;
     return json({ event: data, access_token: token, guest_url: guestURL(data.slug, token) });
   }
@@ -133,13 +134,15 @@ async function createEvent(req: Request, client: SupabaseClient) {
   if (!name) throw new HTTPError(400, "Event name is required", "validation_error");
   const now = new Date(); const starts = body.starts_at || now.toISOString(); const ends = body.ends_at || new Date(now.getTime() + 12 * 3600_000).toISOString(); const reveal = body.reveal_at || ends;
   const id = id26(); const slug = `${slugify(name)}-${id.slice(-6).toLowerCase()}`; const cfg = await config(client); const version = `v2:${randomToken()}`; const token = await deriveAccessToken(id, version, cfg.token_pepper);
-  const row = { id, slug, name, description: String(body.description || "").trim(), access_token_hash: await tokenHash(token, cfg.token_pepper), access_token_version: version, organizer_token_hash: "", guest_url: "", mode: body.mode || "delayed_reveal", status: "open", starts_at: starts, ends_at: ends, reveal_at: reveal, max_guests: body.max_guests || 250, max_photos_per_guest: body.max_photos_per_guest || 12, allow_gallery_uploads: body.allow_gallery_uploads ?? true, prefer_camera_capture: body.prefer_camera_capture ?? true, allow_immediate_gallery: body.allow_immediate_gallery ?? false, auto_approve_photos: body.auto_approve_photos ?? true, offline_upload_grace_hours: body.offline_upload_grace_hours ?? 24 };
+  const token_hash = await tokenHash(token, cfg.token_pepper);
+  const description = String(body.description || "").trim();
+  const row = { id, slug, name, title: name, description, host_message: description, access_token_hash: token_hash, guest_upload_token_hash: token_hash, guest_upload_enabled: true, access_token_version: version, organizer_token_hash: "", guest_url: "", mode: body.mode || "delayed_reveal", status: "open", starts_at: starts, ends_at: ends, reveal_at: reveal, max_guests: body.max_guests || 250, max_photos_per_guest: body.max_photos_per_guest || 12, allow_gallery_uploads: body.allow_gallery_uploads ?? true, prefer_camera_capture: body.prefer_camera_capture ?? true, allow_immediate_gallery: body.allow_immediate_gallery ?? false, auto_approve_photos: body.auto_approve_photos ?? true, offline_upload_grace_hours: body.offline_upload_grace_hours ?? 24 };
   const { data, error } = await client.from("events").insert(row).select(eventColumns).single();
   if (error) throw error; return json({ event: data, access_token: token, guest_url: guestURL(slug, token) }, 201);
 }
 
 async function setEventStatus(client: SupabaseClient, id: string, status: string) {
-  const { data, error } = await client.from("events").update({ status, updated_at: new Date().toISOString() }).eq("id", id).select(eventColumns).single();
+  const { data, error } = await client.from("events").update({ status, guest_upload_enabled: status === "open", updated_at: new Date().toISOString() }).eq("id", id).select(eventColumns).single();
   if (error) throw error; return json({ event: data });
 }
 
@@ -152,15 +155,51 @@ async function adminSession(req: Request, client: SupabaseClient, required: bool
 
 async function overview(client: SupabaseClient) {
   const now = new Date().toISOString();
-  const [events, open, upcoming, guests, photos, pending, bytes] = await Promise.all([
-    count(client, "events", (q) => q.neq("status", "deleted")), count(client, "events", (q) => q.eq("status", "open")), count(client, "events", (q) => q.gt("starts_at", now).neq("status", "deleted")), count(client, "guests"), count(client, "photos", (q) => q.neq("status", "deleted")), count(client, "photos", (q) => q.eq("status", "pending")), client.from("photos").select("size_bytes").neq("status", "deleted")
+  const [events, open, upcoming, guests, photos, pending, bytes, media, pendingMedia, mediaBytes] = await Promise.all([
+    count(client, "events", (q) => q.neq("status", "deleted")), count(client, "events", (q) => q.eq("status", "open")), count(client, "events", (q) => q.gt("starts_at", now).neq("status", "deleted")), count(client, "guests"), count(client, "photos", (q) => q.neq("status", "deleted")), count(client, "photos", (q) => q.eq("status", "pending")), client.from("photos").select("size_bytes").neq("status", "deleted"), count(client, "event_media", (q) => q.eq("upload_status", "uploaded").neq("approval_status", "hidden")), count(client, "event_media", (q) => q.eq("approval_status", "pending")), client.from("event_media").select("file_size").eq("upload_status", "uploaded").neq("approval_status", "hidden")
   ]);
-  return { events, open_events: open, upcoming_events: upcoming, guests, photos, pending_photos: pending, storage_bytes: (bytes.data || []).reduce((n, p) => n + Number(p.size_bytes), 0) };
+  return { events, open_events: open, upcoming_events: upcoming, guests, photos: photos + media, pending_photos: pending + pendingMedia, storage_bytes: (bytes.data || []).reduce((n, p) => n + Number(p.size_bytes), 0) + (mediaBytes.data || []).reduce((n, p) => n + Number(p.file_size), 0) };
 }
 
 async function count(client: SupabaseClient, table: string, alter: (q: any) => any = (q) => q) { const { count, error } = await alter(client.from(table).select("*", { count: "exact", head: true })); if (error) throw error; return count || 0; }
-async function eventStats(client: SupabaseClient, id: string) { const [guest_count, photo_count, pending_photos, sizes] = await Promise.all([count(client,"guests",q=>q.eq("event_id",id)),count(client,"photos",q=>q.eq("event_id",id).neq("status","deleted")),count(client,"photos",q=>q.eq("event_id",id).eq("status","pending")),client.from("photos").select("size_bytes").eq("event_id",id).neq("status","deleted")]); return { guest_count, photo_count, pending_photos, storage_bytes:(sizes.data||[]).reduce((n,p)=>n+Number(p.size_bytes),0) }; }
-async function eventDetail(client: SupabaseClient, id: string) { const [{data:event,error},{data:guests},{data:photos},stats] = await Promise.all([client.from("events").select(`${eventColumns},access_token_version`).eq("id",id).single(),client.from("guests").select("id,event_id,display_name,upload_count,message_count,created_at,last_seen_at,status").eq("event_id",id).order("created_at"),client.from("photos").select(photoColumns()).eq("event_id",id).neq("status","deleted").order("created_at",{ascending:false}),eventStats(client,id)]); if(error)throw error; const token=await ensureEventToken(client,event); delete event.access_token_version; return {event,guest_url:guestURL(event.slug,token),guests:guests||[],photos:await signedPhotos(client,photos||[]),stats:{events:1,open_events:event.status==="open"?1:0,upcoming_events:0,guests:stats.guest_count,photos:stats.photo_count,pending_photos:stats.pending_photos,storage_bytes:stats.storage_bytes}}; }
+async function eventStats(client: SupabaseClient, id: string) {
+  const [guest_count, photo_count, pending_photos, sizes, media_count, pending_media, media_sizes] = await Promise.all([
+    count(client, "guests", (q) => q.eq("event_id", id)),
+    count(client, "photos", (q) => q.eq("event_id", id).neq("status", "deleted")),
+    count(client, "photos", (q) => q.eq("event_id", id).eq("status", "pending")),
+    client.from("photos").select("size_bytes").eq("event_id", id).neq("status", "deleted"),
+    count(client, "event_media", (q) => q.eq("event_id", id).eq("upload_status", "uploaded").neq("approval_status", "hidden")),
+    count(client, "event_media", (q) => q.eq("event_id", id).eq("approval_status", "pending")),
+    client.from("event_media").select("file_size").eq("event_id", id).eq("upload_status", "uploaded").neq("approval_status", "hidden")
+  ]);
+  return {
+    guest_count,
+    photo_count: photo_count + media_count,
+    pending_photos: pending_photos + pending_media,
+    storage_bytes: (sizes.data || []).reduce((n, p) => n + Number(p.size_bytes), 0) + (media_sizes.data || []).reduce((n, p) => n + Number(p.file_size), 0)
+  };
+}
+
+async function eventDetail(client: SupabaseClient, id: string) {
+  const [{ data: event, error }, { data: guests }, { data: photos }, { data: media }, stats] = await Promise.all([
+    client.from("events").select(`${eventColumns},access_token_version`).eq("id", id).single(),
+    client.from("guests").select("id,event_id,display_name,upload_count,message_count,created_at,last_seen_at,status").eq("event_id", id).order("created_at"),
+    client.from("photos").select(photoColumns()).eq("event_id", id).neq("status", "deleted").order("created_at", { ascending: false }),
+    client.from("event_media").select(mediaColumns()).eq("event_id", id).eq("upload_status", "uploaded").neq("approval_status", "hidden").order("created_at", { ascending: false }),
+    eventStats(client, id)
+  ]);
+  if (error) throw error;
+  const token = await ensureEventToken(client, event);
+  delete event.access_token_version;
+  const dashboardPhotos = [...(photos || []), ...mapEventMedia(media || [])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  return {
+    event,
+    guest_url: guestURL(event.slug, token),
+    guests: guests || [],
+    photos: await signedPhotos(client, dashboardPhotos),
+    stats: { events: 1, open_events: event.status === "open" ? 1 : 0, upcoming_events: 0, guests: stats.guest_count, photos: stats.photo_count, pending_photos: stats.pending_photos, storage_bytes: stats.storage_bytes }
+  };
+}
 
 async function guestRoute(req: Request, parts: string[], client: SupabaseClient) {
   const slug = parts[0]; const action = parts[1]; const body = await bodyJSON(req); const event = await validEvent(client, slug, String(body.access_token || bearer(req) || ""));
@@ -188,19 +227,32 @@ async function guestRoute(req: Request, parts: string[], client: SupabaseClient)
   throw new HTTPError(404,"Not found","not_found");
 }
 
-async function galleryRoute(req: Request, slug: string, client: SupabaseClient) { const token=bearer(req); const event=await validEvent(client,slug,token); if(!galleryAvailable(event))throw new HTTPError(403,"Gallery is not available yet","gallery_locked"); const {data,error}=await client.from("photos").select(photoColumns()).eq("event_id",event.id).eq("status","approved").order("created_at",{ascending:false}); if(error)throw error; return json({event,photos:await signedPhotos(client,data||[])}); }
+async function galleryRoute(req: Request, slug: string, client: SupabaseClient) {
+  const token = bearer(req);
+  const event = await validEvent(client, slug, token);
+  if (!galleryAvailable(event)) throw new HTTPError(403, "Gallery is not available yet", "gallery_locked");
+  const [{ data: photos, error }, { data: media, error: mediaError }] = await Promise.all([
+    client.from("photos").select(photoColumns()).eq("event_id", event.id).eq("status", "approved").order("created_at", { ascending: false }),
+    client.from("event_media").select(mediaColumns()).eq("event_id", event.id).eq("upload_status", "uploaded").eq("approval_status", "approved").order("created_at", { ascending: false })
+  ]);
+  if (error || mediaError) throw error || mediaError;
+  const galleryPhotos = [...(photos || []), ...mapEventMedia(media || [])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  return json({ event, photos: await signedPhotos(client, galleryPhotos) });
+}
 
 async function validEvent(client: SupabaseClient, slug: string, token: string) { const {data,error}=await client.from("events").select(`${eventColumns},access_token_hash`).eq("slug",slug).neq("status","deleted").single(); if(error||!data)throw new HTTPError(404,"Event not found","not_found"); const cfg=await config(client); if(!token||!safeEqual(data.access_token_hash,await tokenHash(token,cfg.token_pepper)))throw new HTTPError(401,"Unauthorized","unauthorized"); delete data.access_token_hash; return data; }
 async function findOrCreateGuest(client: SupabaseClient,event:any,req:Request,name:string,create:boolean){const raw=req.headers.get("x-guest-token")||bearer(req);if(!raw)throw new HTTPError(401,"Guest token required","unauthorized");const cfg=await config(client),hash=await tokenHash(raw,cfg.token_pepper);let {data}=await client.from("guests").select("*").eq("event_id",event.id).eq("device_token_hash",hash).maybeSingle();if(data){if(name){const out=await client.from("guests").update({display_name:name.slice(0,100),last_seen_at:new Date().toISOString()}).eq("id",data.id).select("*").single();data=out.data;}return data;}if(!create)throw new HTTPError(401,"Join event first","unauthorized");if(await count(client,"guests",q=>q.eq("event_id",event.id))>=event.max_guests)throw new HTTPError(409,"Guest limit reached","guest_limit");const now=new Date().toISOString(),row={id:id26(),event_id:event.id,device_token_hash:hash,display_name:name.slice(0,100),upload_count:0,message_count:0,created_at:now,last_seen_at:now,status:"active"};const out=await client.from("guests").insert(row).select("*").single();if(out.error)throw out.error;return out.data;}
 function photoColumns(){return "id,event_id,guest_id,object_key,content_type,size_bytes,message,status,is_developed,width_px,height_px,created_at,updated_at";}
-async function signedPhotos(client:SupabaseClient,photos:any[]){return Promise.all(photos.map(async p=>{const [original,thumbnail]=await Promise.all([client.storage.from(bucket).createSignedUrl(p.object_key,900),client.storage.from(bucket).createSignedUrl(p.object_key,900,{transform:{width:768,quality:75,resize:"contain"}})]);return{...p,public_url:original.data?.signedUrl,thumbnail_url:thumbnail.data?.signedUrl};}));}
+function mediaColumns(){return "id,event_id,guest_upload_session_id,guest_name,file_name,file_type,file_size,storage_path,media_type,upload_status,approval_status,created_at";}
+function mapEventMedia(media:any[]){return media.map((m)=>({id:m.id,event_id:m.event_id,guest_id:m.guest_upload_session_id,object_key:m.storage_path,content_type:m.file_type,size_bytes:m.file_size,message:`Uploaded by ${m.guest_name}`,status:m.approval_status === "approved" ? "approved" : m.approval_status === "pending" ? "pending" : "hidden",is_developed:true,created_at:m.created_at,updated_at:m.created_at,media_type:m.media_type,file_name:m.file_name}));}
+async function signedPhotos(client:SupabaseClient,photos:any[]){return Promise.all(photos.map(async p=>{const original=await client.storage.from(bucket).createSignedUrl(p.object_key,900);const thumbnail=p.content_type?.startsWith("image/")?await client.storage.from(bucket).createSignedUrl(p.object_key,900,{transform:{width:768,quality:75,resize:"contain"}}):original;return{...p,public_url:original.data?.signedUrl,thumbnail_url:thumbnail.data?.signedUrl};}));}
 async function photoArchive(client:SupabaseClient,eventID:string){const {data}=await client.from("photos").select("id,object_key,content_type").eq("event_id",eventID).neq("status","deleted").limit(1000);const zip=new JSZip();for(const p of data||[]){const file=await client.storage.from(bucket).download(p.object_key);if(file.data)zip.file(`${p.id}.${extension(p.content_type)}`,await file.data.arrayBuffer());}const bytes=await zip.generateAsync({type:"uint8array"});return new Response(bytes,{headers:{...cors,"Content-Type":"application/zip","Content-Disposition":'attachment; filename="event-photos.zip"'}});}
 
 function galleryAvailable(e:any){return e.allow_immediate_gallery||e.mode==="live_gallery"||Date.now()>=new Date(e.reveal_at).getTime();}
-async function ensureEventToken(client:SupabaseClient,event:any){const cfg=await config(client);let version=String(event.access_token_version||"");if(!version.startsWith("v2:")){version=`v2:${randomToken()}`;const token=await deriveAccessToken(event.id,version,cfg.token_pepper);const {error}=await client.from("events").update({access_token_version:version,access_token_hash:await tokenHash(token,cfg.token_pepper),updated_at:new Date().toISOString()}).eq("id",event.id);if(error)throw error;event.access_token_version=version;return token;}return deriveAccessToken(event.id,version,cfg.token_pepper);}
+async function ensureEventToken(client:SupabaseClient,event:any){const cfg=await config(client);let version=String(event.access_token_version||"");if(!version.startsWith("v2:")){version=`v2:${randomToken()}`;const token=await deriveAccessToken(event.id,version,cfg.token_pepper);const hash=await tokenHash(token,cfg.token_pepper);const {error}=await client.from("events").update({access_token_version:version,access_token_hash:hash,guest_upload_token_hash:hash,updated_at:new Date().toISOString()}).eq("id",event.id);if(error)throw error;event.access_token_version=version;return token;}return deriveAccessToken(event.id,version,cfg.token_pepper);}
 async function deriveAccessToken(eventID:string,version:string,pepper:string){return sha256(`event:${pepper}:${eventID}:${version}`);}
-function guestURL(slug:string,token:string){const base=Deno.env.get("PUBLIC_WEB_URL")||"https://one-shot-one-night.vercel.app";return `${base}/guest/${slug}${token?`?t=${encodeURIComponent(token)}`:""}`;}
-function extension(type:string){return type==="image/png"?"png":type==="image/webp"?"webp":type==="image/heic"?"heic":type==="image/heif"?"heif":"jpg";}
+function guestURL(slug:string,token:string){const base=Deno.env.get("PUBLIC_WEB_URL")||"https://one-shot-one-night.vercel.app";return `${base}/guest-upload/${slug}${token?`?token=${encodeURIComponent(token)}`:""}`;}
+function extension(type:string){return type==="image/png"?"png":type==="image/webp"?"webp":type==="image/heic"?"heic":type==="image/heif"?"heif":type==="video/mp4"?"mp4":type==="video/quicktime"?"mov":type==="video/webm"?"webm":"jpg";}
 function positiveInt(value:unknown){const n=Number(value);return Number.isInteger(n)&&n>0?n:null;}
 function slugify(v:string){return v.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,80)||"event";}
 function id26(){return crypto.randomUUID().replaceAll("-","").slice(0,26).toUpperCase();}

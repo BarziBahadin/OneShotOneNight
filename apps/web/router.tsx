@@ -26,6 +26,7 @@ export function AppRoutes() {
             <Route path="/admin/events/:id" element={<AdminEventRoute />} />
           </Route>
           <Route path="/guest/:slug" element={<GuestRoute />} />
+          <Route path="/guest-upload/:slug" element={<GuestRoute />} />
           <Route path="/gallery/:slug" element={<GalleryRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -58,7 +59,7 @@ function AdminEventRoute() {
 function GuestRoute() {
   const { slug = "" } = useParams();
   const [search] = useSearchParams();
-  return <GuestCamera slug={slug} accessToken={search.get("t") ?? ""} />;
+  return <GuestCamera slug={slug} accessToken={search.get("token") ?? search.get("t") ?? ""} />;
 }
 
 function GalleryRoute() {

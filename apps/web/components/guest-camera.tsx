@@ -51,7 +51,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
       setEvent(out.event);
       setRemaining(out.remaining_shots);
       setGalleryAvailable(out.gallery_available);
-      window.history.replaceState({}, "", `/guest/${slug}`);
+      window.history.replaceState({}, "", `/guest-upload/${slug}`);
     } catch (err) {
       setStatus(err instanceof Error ? friendlyJoinError(err.message) : "Unable to open this invitation.");
     } finally {
@@ -176,8 +176,8 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
             <button type="button" disabled={uploading || shotsRemaining === 0} onClick={() => libraryInput.current?.click()} className="reveal-secondary-action">
               <Images className="h-6 w-6" /> Choose from library
             </button>
-            <input ref={cameraInput} onChange={onPhotoSelected} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" className="sr-only" />
-            <input ref={libraryInput} onChange={onPhotoSelected} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" />
+            <input ref={cameraInput} onChange={onPhotoSelected} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm" capture="environment" className="sr-only" />
+            <input ref={libraryInput} onChange={onPhotoSelected} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm" className="sr-only" />
             <p className="flex items-center justify-center gap-2 text-center text-xs text-white/46"><ShieldCheck className="h-4 w-4 text-amber" /> Private event. Only the host controls the reveal.</p>
           </section>
 
