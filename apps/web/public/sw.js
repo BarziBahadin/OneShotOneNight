@@ -1,4 +1,4 @@
-const VERSION = "oneshotonenight-v5";
+const VERSION = "oneshotonenight-v6";
 const APP_SHELL_CACHE = `${VERSION}-app-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -15,7 +15,7 @@ const APP_SHELL = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(APP_SHELL_CACHE)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => Promise.all(APP_SHELL.map((path) => cache.add(path).catch(() => undefined))))
       .then(() => self.skipWaiting())
   );
 });
@@ -56,24 +56,30 @@ self.addEventListener("fetch", (event) => {
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) {
-    const cache = await caches.open(RUNTIME_CACHE);
-    cache.put(request, response.clone());
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cacheResponse(request, response);
+    }
+    return response;
+  } catch {
+    return offlineResponse(request);
   }
-  return response;
 }
 
 async function networkFirst(request, fallbackPath) {
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(RUNTIME_CACHE);
-      cache.put(request, response.clone());
+      cacheResponse(request, response);
     }
     return response;
   } catch {
-    return caches.match(request).then((cached) => cached || caches.match(fallbackPath));
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const fallback = await caches.match(fallbackPath);
+    if (fallback) return fallback;
+    return offlineResponse(request);
   }
 }
 
@@ -81,8 +87,32 @@ async function staleWhileRevalidate(request) {
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
   const fetched = fetch(request).then((response) => {
-    if (response.ok) cache.put(request, response.clone());
+    if (response.ok) cacheResponse(request, response);
     return response;
-  }).catch(() => cached);
+  }).catch(() => cached || offlineResponse(request));
   return cached || fetched;
+}
+
+function cacheResponse(request, response) {
+  caches.open(RUNTIME_CACHE)
+    .then((cache) => cache.put(request, response.clone()))
+    .catch(() => undefined);
+}
+
+function offlineResponse(request) {
+  if (request.mode === "navigate") {
+    return new Response(
+      "<!doctype html><title>Offline</title><main><h1>Offline</h1><p>Please check your connection and try again.</p></main>",
+      {
+        status: 503,
+        statusText: "Service Unavailable",
+        headers: { "Content-Type": "text/html; charset=utf-8" }
+      }
+    );
+  }
+
+  return new Response("", {
+    status: 503,
+    statusText: "Service Unavailable"
+  });
 }
