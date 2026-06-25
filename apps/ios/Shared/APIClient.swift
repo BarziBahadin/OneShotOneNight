@@ -73,7 +73,7 @@ actor APIClient {
         headers: [String: String] = [:],
         body: Body?
     ) async throws -> Response {
-        guard let url = URL(string: path, relativeTo: invitation.apiBaseURL) else { throw APIError.invalidURL }
+        guard let url = endpointURL(path: path) else { throw APIError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -82,6 +82,14 @@ actor APIClient {
         let (data, response) = try await session.data(for: request)
         try validate(response: response, data: data)
         return try decoder.decode(Response.self, from: data)
+    }
+
+    private func endpointURL(path: String) -> URL? {
+        let components = path.split(separator: "/", omittingEmptySubsequences: true)
+        guard !components.isEmpty else { return nil }
+        return components.reduce(invitation.apiBaseURL) { url, component in
+            url.appendingPathComponent(String(component))
+        }
     }
 
     private func signedUpload(data: Data, presign: PresignResponse) async throws {

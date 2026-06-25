@@ -197,6 +197,7 @@ final class GuestEventModel {
 
     func join() async {
         guard event == nil else { return }
+        errorMessage = nil
         do { let response = try await client.join(); event = response.event; remainingShots = response.remainingShots; galleryAvailable = response.galleryAvailable }
         catch { errorMessage = error.localizedDescription }
     }

@@ -40,7 +40,8 @@ struct EventInvitation: Hashable, Sendable {
             slug = nil
         }
         guard let slug, !slug.isEmpty else { return nil }
-        let token = components?.queryItems?.first(where: { $0.name == "t" })?.value ?? ""
+        guard let token = components?.queryItems?.first(where: { $0.name == "t" })?.value,
+              !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
         if url.scheme == "http" || url.scheme == "https" {
             guard let scheme = url.scheme, let host = url.host else { return nil }
