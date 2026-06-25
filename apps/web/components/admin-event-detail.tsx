@@ -24,7 +24,6 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
   const [status, setStatus] = useState("Loading...");
   const [section, setSection] = useState<Section>("event");
   const [qr, setQr] = useState("");
-  const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState("");
 
   async function load() {
@@ -80,7 +79,6 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
     if (!window.confirm("Reset this event's guest QR and host token? Old links will stop working.")) return;
     const out = await adminResetEventTokens(eventID);
     setDetail({ ...detail!, event: out.event, guest_url: out.guest_url });
-    setCopied(false);
     setToast("Guest QR and host token reset");
     window.setTimeout(() => setToast(""), 2200);
   }
@@ -127,11 +125,7 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
       </nav>
 
       {section === "event" ? (
-        <EventWorkspace detail={detail} guestLink={guestLink} galleryLink={galleryLink} qr={qr} copied={copied} onCopied={() => {
-          copyText(guestLink);
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1500);
-        }} onToast={(message) => {
+        <EventWorkspace detail={detail} guestLink={guestLink} galleryLink={galleryLink} qr={qr} onToast={(message) => {
           setToast(message);
           window.setTimeout(() => setToast(""), 1800);
         }} onChange={load} />
@@ -144,16 +138,15 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
   );
 }
 
-function EventWorkspace({ detail, guestLink, galleryLink, qr, copied, onCopied, onToast, onChange }: {
+function EventWorkspace({ detail, guestLink, galleryLink, qr, onToast, onChange }: {
   detail: AdminEventDetail;
   guestLink: string;
   galleryLink: string;
   qr: string;
-  copied: boolean;
-  onCopied: () => void;
   onToast: (message: string) => void;
   onChange: () => Promise<void>;
 }) {
+  const [copiedLink, setCopiedLink] = useState<"guest" | "gallery" | null>(null);
   const photos = useMemo(
     () => detail.photos.filter((photo) => photo.status !== "deleted").sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [detail.photos]
@@ -192,6 +185,13 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, copied, onCopied, 
     }
   }
 
+  async function copyPanelLink(value: string, kind: "guest" | "gallery", message: string) {
+    await copyText(value);
+    setCopiedLink(kind);
+    onToast(message);
+    window.setTimeout(() => setCopiedLink(null), 1500);
+  }
+
   function saveQR() {
     if (!qr) return;
     const anchor = document.createElement("a");
@@ -218,17 +218,20 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, copied, onCopied, 
           <button className="rounded-full bg-white px-4 py-3 text-sm font-bold text-black" onClick={shareGuestLink}>
             <Share2 className="mr-1 inline h-4 w-4" /> Share
           </button>
+          <button className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white" onClick={() => void copyPanelLink(guestLink, "guest", "Upload link copied.")}>
+            <Copy className="mr-1 inline h-4 w-4" /> {copiedLink === "guest" ? "Copied" : "Copy link"}
+          </button>
           <button className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white" onClick={saveQR}>
             <Download className="mr-1 inline h-4 w-4" /> Save QR
+          </button>
+          <button className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white" onClick={() => void copyPanelLink(galleryLink, "gallery", "Host gallery link copied.")}>
+            <Copy className="mr-1 inline h-4 w-4" /> {copiedLink === "gallery" ? "Copied" : "Copy gallery"}
           </button>
         </div>
         <div className="relative mt-3 grid gap-2">
           <a className="btn-primary px-4 py-3" href={galleryLink} target="_blank" rel="noreferrer">
             <Eye className="h-4 w-4" /> Open host gallery
           </a>
-          <button className="btn-ghost px-4 py-3" onClick={onCopied}>
-            <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy upload link"}
-          </button>
         </div>
         <p className="relative mt-4 break-all text-[0.65rem] text-white/40">{guestLink}</p>
       </aside>

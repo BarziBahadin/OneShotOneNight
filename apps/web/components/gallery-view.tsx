@@ -30,7 +30,6 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
         rememberGuestAccessToken(slug, activeToken);
       }
       const out = await guestGallery(slug, activeToken, { before, limit: 24 });
-      if (activeToken) window.history.replaceState({}, "", `/gallery/${slug}`);
       setEvent(out.event);
       setNextCursor(out.next_cursor ?? null);
       setPhotos((current) => {
