@@ -191,16 +191,16 @@ function ClassicGalleryView({
           ) : (
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {photos.map((photo, index) => (
-                <figure key={photo.id} className="group relative aspect-[3/4] overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04]">
+                <figure key={photo.id} className="group relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04]">
                   <img
                     src={photo.thumbnail_url || photo.public_url}
                     alt={photo.message || "Event photo"}
-                    width="320"
-                    height="427"
+                    width={photo.width_px || 320}
+                    height={photo.height_px || 427}
                     loading={index < 4 ? "eager" : "lazy"}
                     fetchPriority={index === 0 ? "high" : "auto"}
                     decoding="async"
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    className="h-auto w-full transition-transform duration-700 group-hover:scale-[1.03]"
                   />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                     <figcaption className="line-clamp-2 text-xs leading-5 text-white/78">{photo.message || formatPhotoDate(photo.created_at)}</figcaption>
@@ -380,19 +380,18 @@ function PhotoGalleryGrid({ photos, onOpen }: { photos: PhotoRecord[]; onOpen: (
 
 function PhotoCard({ photo, index, onOpen }: { photo: PhotoRecord; index: number; onOpen: () => void }) {
   const rotation = ["-rotate-[1.2deg]", "rotate-[0.8deg]", "rotate-[1.5deg]", "-rotate-[0.5deg]"][index % 4];
-  const large = index % 7 === 0 || index % 11 === 0;
   return (
     <figure className={`group mb-5 break-inside-avoid rounded-[1.35rem] bg-[#fffdf7] p-2.5 shadow-[0_18px_45px_rgba(77,47,20,0.17)] ring-1 ring-[#7c5930]/10 transition duration-500 hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(77,47,20,0.24)] ${rotation}`}>
       <button type="button" onClick={onOpen} className="block w-full overflow-hidden rounded-[1rem] bg-[#eadcc9] text-left focus-visible:outline-[#9d6b38]" aria-label={`Open photo ${index + 1}`}>
         <img
           src={photo.thumbnail_url || photo.public_url}
           alt={photo.message || `Party memory ${index + 1}`}
-          width="320"
-          height={large ? "400" : "427"}
+          width={photo.width_px || 320}
+          height={photo.height_px || 427}
           loading={index < 4 ? "eager" : "lazy"}
           fetchPriority={index === 0 ? "high" : "auto"}
           decoding="async"
-          className={`w-full object-cover sepia-[0.16] saturate-[0.92] transition duration-700 group-hover:scale-[1.035] ${large ? "aspect-[4/5]" : "aspect-[3/4]"}`}
+          className="h-auto w-full sepia-[0.16] saturate-[0.92] transition duration-700 group-hover:scale-[1.035]"
         />
       </button>
       <figcaption className="px-2 pb-2 pt-3">

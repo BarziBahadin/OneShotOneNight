@@ -266,7 +266,7 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, copied, onCopied, 
                   height={photo.height_px || 1024}
                   loading="lazy"
                   decoding="async"
-                  className="w-full bg-skywash object-cover"
+                  className="h-auto w-full bg-skywash"
                 />
                 <div className="grid gap-3 p-3">
                   <div className="flex items-center justify-between text-xs">
