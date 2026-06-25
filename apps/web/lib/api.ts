@@ -81,6 +81,7 @@ export type PhotoRecord = {
   object_key: string;
   public_url?: string;
   thumbnail_url?: string;
+  preview_url?: string;
   width_px?: number;
   height_px?: number;
   content_type: string;

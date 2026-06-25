@@ -195,8 +195,8 @@ function ClassicGalleryView({
                   <img
                     src={photo.thumbnail_url || photo.public_url}
                     alt={photo.message || "Event photo"}
-                    width={photo.width_px || 768}
-                    height={photo.height_px || 1024}
+                    width="320"
+                    height="427"
                     loading={index < 4 ? "eager" : "lazy"}
                     fetchPriority={index === 0 ? "high" : "auto"}
                     decoding="async"
@@ -387,8 +387,8 @@ function PhotoCard({ photo, index, onOpen }: { photo: PhotoRecord; index: number
         <img
           src={photo.thumbnail_url || photo.public_url}
           alt={photo.message || `Party memory ${index + 1}`}
-          width={photo.width_px || 900}
-          height={photo.height_px || (large ? 1200 : 1050)}
+          width="320"
+          height={large ? "400" : "427"}
           loading={index < 4 ? "eager" : "lazy"}
           fetchPriority={index === 0 ? "high" : "auto"}
           decoding="async"
@@ -452,7 +452,7 @@ function LightboxViewer({
             <ChevronLeft className="h-6 w-6" />
           </button>
           <img
-            src={photo.public_url || photo.thumbnail_url}
+            src={photo.preview_url || photo.public_url || photo.thumbnail_url}
             alt={photo.message || `Party memory ${index + 1}`}
             width={photo.width_px || 1200}
             height={photo.height_px || 1600}
