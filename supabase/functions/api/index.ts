@@ -138,7 +138,8 @@ async function createEvent(req: Request, client: SupabaseClient) {
   const description = String(body.description || "").trim();
   const row = { id, slug, name, title: name, description, host_message: description, access_token_hash: token_hash, guest_upload_token_hash: token_hash, guest_upload_enabled: true, access_token_version: version, organizer_token_hash: "", guest_url: "", mode: body.mode || "delayed_reveal", status: "open", starts_at: starts, ends_at: ends, reveal_at: reveal, max_guests: body.max_guests || 250, max_photos_per_guest: body.max_photos_per_guest || 12, allow_gallery_uploads: body.allow_gallery_uploads ?? true, prefer_camera_capture: body.prefer_camera_capture ?? true, allow_immediate_gallery: body.allow_immediate_gallery ?? false, auto_approve_photos: body.auto_approve_photos ?? true, offline_upload_grace_hours: body.offline_upload_grace_hours ?? 24 };
   const { data, error } = await client.from("events").insert(row).select(eventColumns).single();
-  if (error) throw error; return json({ event: data, access_token: token, guest_url: guestURL(slug, token) }, 201);
+  if (error) throw adminDatabaseError(error);
+  return json({ event: data, access_token: token, guest_url: guestURL(slug, token) }, 201);
 }
 
 async function setEventStatus(client: SupabaseClient, id: string, status: string) {
@@ -262,4 +263,7 @@ async function sha256(v:string){const d=await crypto.subtle.digest("SHA-256",new
 async function tokenHash(token:string,pepper:string){return sha256(`${pepper}:${token}`);}
 function safeEqual(a:string,b:string){if(a.length!==b.length)return false;let out=0;for(let i=0;i<a.length;i++)out|=a.charCodeAt(i)^b.charCodeAt(i);return out===0;}
 async function bodyJSON(req:Request){if(req.method==="GET"||req.method==="HEAD")return{};try{return await req.json();}catch{return{};}}
+function adminDatabaseError(error: any) {
+  return new HTTPError(500, String(error?.message || "Database request failed"), String(error?.code || "database_error"));
+}
 function json(value:unknown,status=200){return new Response(JSON.stringify(value),{status,headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});}

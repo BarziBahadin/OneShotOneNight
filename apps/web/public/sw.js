@@ -1,4 +1,4 @@
-const VERSION = "oneshotonenight-v6";
+const VERSION = "oneshotonenight-v7";
 const APP_SHELL_CACHE = `${VERSION}-app-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -9,7 +9,10 @@ const APP_SHELL = [
   "/app-icon-512.png",
   "/apple-touch-icon.png",
   "/favicon-32.png",
-  "/admin/login"
+  "/admin/login",
+  "/admin",
+  "/admin/events",
+  "/admin/events/new"
 ];
 
 self.addEventListener("install", (event) => {
@@ -72,6 +75,11 @@ async function networkFirst(request, fallbackPath) {
     const response = await fetch(request);
     if (response.ok) {
       cacheResponse(request, response);
+      return response;
+    }
+    if (request.mode === "navigate") {
+      const fallback = await caches.match(fallbackPath);
+      if (fallback) return fallback;
     }
     return response;
   } catch {
