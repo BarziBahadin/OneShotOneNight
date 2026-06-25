@@ -28,9 +28,9 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
     try {
       if (activeToken) {
         rememberGuestAccessToken(slug, activeToken);
-        window.history.replaceState({}, "", `/gallery/${slug}`);
       }
       const out = await guestGallery(slug, activeToken, { before, limit: 24 });
+      if (activeToken) window.history.replaceState({}, "", `/gallery/${slug}`);
       setEvent(out.event);
       setNextCursor(out.next_cursor ?? null);
       setPhotos((current) => {
@@ -42,7 +42,7 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
       else if (out.photos.length) setStatus("");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to load the album.";
-      setStatus(message.includes("reveal_not_reached") ? "Photos are sealed until the reveal. Come back when the album unlocks." : message);
+      setStatus(friendlyGalleryError(message));
     } finally {
       if (append) setLoadingMore(false);
     }
@@ -588,6 +588,12 @@ function revealCopy(event: EventRecord, locked: boolean) {
   if (Number.isNaN(reveal.getTime())) return "The host controls when this album opens.";
   if (Date.now() >= reveal.getTime()) return "The album is unlocked. Approved photos are ready.";
   return `The album unlocks ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(reveal)}.`;
+}
+
+function friendlyGalleryError(message: string) {
+  if (message.includes("reveal_not_reached")) return "Photos are sealed until the reveal. Come back when the album unlocks.";
+  if (/unauthorized/i.test(message)) return "This gallery link is missing or has an expired access token. Open it from the latest QR code or host link.";
+  return message;
 }
 
 function formatEventDate(value?: string) {

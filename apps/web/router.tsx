@@ -81,5 +81,5 @@ function GuestUploadRoute() {
 function GalleryRoute() {
   const { slug = "" } = useParams();
   const [search] = useSearchParams();
-  return <GalleryView slug={slug} accessToken={search.get("t") ?? search.get("token") ?? ""} />;
+  return <GalleryView slug={slug} accessToken={search.get("t") ?? search.get("token") ?? search.get("access_token") ?? ""} />;
 }
