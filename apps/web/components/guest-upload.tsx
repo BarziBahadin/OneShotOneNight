@@ -24,9 +24,6 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const [guestName, setGuestName] = useState("");
   const autoJoinAttempted = useRef(false);
   const activeToken = useMemo(() => normalizeToken(accessToken) || storedGuestAccessToken(slug), [accessToken, slug]);
-  const maxPhotosForScroll = event?.max_photos_per_guest ?? 0;
-  const remainingForScroll = remaining ?? maxPhotosForScroll;
-  const hasUploadedPhoto = Boolean(event && Math.max(maxPhotosForScroll - remainingForScroll, 0) > 0);
 
   useEffect(() => {
     if (autoJoinAttempted.current || !activeToken) return;
@@ -34,14 +31,6 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
     autoJoinAttempted.current = true;
     void join();
   }, [activeToken]);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = hasUploadedPhoto ? "" : "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [hasUploadedPhoto]);
 
   async function join() {
     setBusy(true);
@@ -135,7 +124,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const hostDescription = (event.description || event.host_message || "").trim();
 
   return (
-    <main className={`reveal-page ${hasUploadedPhoto ? "reveal-page-scrollable" : ""}`}>
+    <main className="reveal-page">
       <img src="/pics/golden-event.jpg" alt="A candlelit dinner table at sunset" className="reveal-bg" />
       <div className="reveal-vignette" />
       {uploading ? <UploadLoadingScreen progress={progress} file={currentUpload} batchDone={batchDone} batchTotal={batchTotal} /> : null}
@@ -213,32 +202,22 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
 }
 
 function UploadLoadingScreen({ progress, file, batchDone, batchTotal }: { progress: number; file: File | null; batchDone: number; batchTotal: number }) {
-  const itemProgress = batchTotal > 0 && batchDone >= batchTotal ? 100 : Math.max(8, progress);
-
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-black/86 px-5 text-white backdrop-blur-xl" role="status" aria-live="polite">
-      <div className="grid w-full max-w-sm gap-5 rounded-[2rem] border border-white/10 bg-[#0b0a09]/92 p-5 shadow-[0_24px_70px_rgb(0_0_0/0.55)]">
-        <div className="grid justify-items-center gap-3 text-center">
-          <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_40px_rgb(37_99_235/0.34)]">
-            <UploadCloud className="h-6 w-6 animate-pulse" />
+    <div className="fixed inset-0 z-30 grid place-items-end bg-black/50 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-white backdrop-blur-sm" role="status" aria-live="polite">
+      <div className="w-full max-w-[520px] rounded-2xl border border-white/10 bg-[#0b0a09]/95 p-4 shadow-[0_-18px_50px_rgb(0_0_0/0.45)]">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <UploadCloud className="h-5 w-5 animate-pulse" />
           </span>
-          <div>
-            <p className="reveal-kicker">Uploading</p>
-            <h2 className="mt-2 font-serif text-3xl font-semibold">Saving your photos</h2>
-            <p className="mt-2 text-sm text-white/54">{batchTotal ? `${batchDone} of ${batchTotal} complete` : "Preparing upload"}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Uploading photos</p>
+            <p className="truncate text-xs text-white/52">{file?.name || (batchTotal ? `${batchDone} of ${batchTotal} complete` : "Preparing upload")}</p>
           </div>
+          <p className="text-sm font-semibold tabular-nums text-white/70">{progress}%</p>
         </div>
-        <FileUpload.Root>
-          <FileUpload.List>
-            <FileUpload.ListItemProgressBar
-              name={file?.name || "Preparing upload"}
-              size={file?.size || 0}
-              progress={itemProgress}
-              type="image"
-              className="border border-white/10 bg-white/[0.06] text-white ring-0"
-            />
-          </FileUpload.List>
-        </FileUpload.Root>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/14" aria-label={`${progress}% uploaded`}>
+          <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300" style={{ width: `${Math.max(8, progress)}%` }} />
+        </div>
       </div>
     </div>
   );

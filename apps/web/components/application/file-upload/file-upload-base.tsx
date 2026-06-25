@@ -190,16 +190,31 @@ export const FileUploadDropZone = ({
         processFiles(Array.from(event.target.files || []));
     };
 
+    const openFilePicker = () => {
+        if (!isDisabled) inputRef.current?.click();
+    };
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openFilePicker();
+    };
+
     return (
         <div
             data-dropzone
+            role="button"
+            tabIndex={isDisabled ? -1 : 0}
+            aria-disabled={isDisabled}
             onDragOver={handleDragIn}
             onDragEnter={handleDragIn}
             onDragLeave={handleDragOut}
             onDragEnd={handleDragOut}
             onDrop={handleDrop}
+            onClick={openFilePicker}
+            onKeyDown={handleKeyDown}
             className={cx(
-                "relative flex flex-col items-center gap-3 rounded-xl bg-primary px-6 py-4 text-tertiary ring-1 ring-secondary transition duration-100 ease-linear ring-inset",
+                "relative flex cursor-pointer flex-col items-center gap-3 rounded-xl bg-primary px-6 py-4 text-tertiary ring-1 ring-secondary transition duration-100 ease-linear ring-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                 isDraggingOver && "ring-2 ring-brand",
                 isDisabled && "cursor-not-allowed bg-secondary",
                 className,
@@ -218,12 +233,9 @@ export const FileUploadDropZone = ({
                         accept={accept}
                         multiple={allowsMultiple}
                         onChange={handleInputFileChange}
+                        onClick={(event) => event.stopPropagation()}
                     />
-                    <label htmlFor={id} className="flex cursor-pointer">
-                        <Button color="link-color" size="md" isDisabled={isDisabled} onClick={() => inputRef.current?.click()}>
-                            Click to upload <span className="md:hidden">and attach files</span>
-                        </Button>
-                    </label>
+                    <span className="text-sm font-semibold text-brand-secondary">Click to upload <span className="md:hidden">and attach files</span></span>
                     <span className="text-sm max-md:hidden">or drag and drop</span>
                 </div>
                 <p className={cx("text-xs transition duration-100 ease-linear", isInvalid && "text-error-primary")}>

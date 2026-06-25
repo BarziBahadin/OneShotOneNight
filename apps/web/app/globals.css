@@ -241,11 +241,7 @@ input::placeholder, textarea::placeholder {
   }
 
   .reveal-page {
-    @apply relative min-h-[100svh] overflow-hidden bg-black text-white;
-  }
-
-  .reveal-page-scrollable {
-    @apply overflow-y-auto;
+    @apply relative min-h-[100svh] overflow-y-auto bg-black text-white;
   }
 
   .reveal-bg {
