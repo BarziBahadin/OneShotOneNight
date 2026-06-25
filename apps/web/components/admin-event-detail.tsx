@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Download, EyeOff, MoreVertical, Play, Settings, Share2, Trash2, UserX } from "lucide-react";
+import { Check, Copy, Download, Eye, EyeOff, MoreVertical, Play, Settings, Share2, Trash2, UserX } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import {
   adminEvent,
@@ -91,6 +91,7 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
 
   const phase = eventPhase(detail.event);
   const guestLink = publicWebURL(detail.guest_url);
+  const galleryLink = hostGalleryURL(detail.event, guestLink);
   return (
     <AdminShell>
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b hairline pb-8">
@@ -126,7 +127,7 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
       </nav>
 
       {section === "event" ? (
-        <EventWorkspace detail={detail} guestLink={guestLink} qr={qr} copied={copied} onCopied={() => {
+        <EventWorkspace detail={detail} guestLink={guestLink} galleryLink={galleryLink} qr={qr} copied={copied} onCopied={() => {
           copyText(guestLink);
           setCopied(true);
           window.setTimeout(() => setCopied(false), 1500);
@@ -143,9 +144,10 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
   );
 }
 
-function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onChange }: {
+function EventWorkspace({ detail, guestLink, galleryLink, qr, copied, onCopied, onToast, onChange }: {
   detail: AdminEventDetail;
   guestLink: string;
+  galleryLink: string;
   qr: string;
   copied: boolean;
   onCopied: () => void;
@@ -221,6 +223,9 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
           </button>
         </div>
         <div className="relative mt-3 grid gap-2">
+          <a className="btn-primary px-4 py-3" href={galleryLink} target="_blank" rel="noreferrer">
+            <Eye className="h-4 w-4" /> Open host gallery
+          </a>
           <button className="btn-ghost px-4 py-3" onClick={onCopied}>
             <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy upload link"}
           </button>
@@ -390,6 +395,16 @@ function eventPhase(event: EventRecord) {
 
 function formatSchedule(event: EventRecord) {
   return `${new Date(event.starts_at).toLocaleString()} to ${new Date(event.ends_at).toLocaleString()}`;
+}
+
+function hostGalleryURL(event: EventRecord, guestLink: string) {
+  try {
+    const url = new URL(guestLink);
+    const token = url.searchParams.get("token") || url.searchParams.get("t") || "";
+    return publicWebURL(`/gallery/${event.slug}${token ? `?t=${encodeURIComponent(token)}` : ""}`);
+  } catch {
+    return publicWebURL(`/gallery/${event.slug}`);
+  }
 }
 
 function Field(props: React.InputHTMLAttributes<HTMLInputElement> & { label: string; name: string }) {
