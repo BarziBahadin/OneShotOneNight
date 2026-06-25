@@ -231,13 +231,24 @@ async function guestRoute(req: Request, parts: string[], client: SupabaseClient)
 async function galleryRoute(req: Request, slug: string, client: SupabaseClient) {
   const token = bearer(req);
   const event = await validEvent(client, slug, token);
+  const url = new URL(req.url);
+  const limit = Math.min(Math.max(positiveInt(url.searchParams.get("limit")) || 24, 1), 60);
+  const before = validDateCursor(url.searchParams.get("before"));
+  const photoQuery = client.from("photos").select(photoColumns()).eq("event_id", event.id).eq("status", "approved").order("created_at", { ascending: false }).limit(limit + 1);
+  const mediaQuery = client.from("event_media").select(mediaColumns()).eq("event_id", event.id).eq("upload_status", "uploaded").eq("approval_status", "approved").order("created_at", { ascending: false }).limit(limit + 1);
+  if (before) {
+    photoQuery.lt("created_at", before);
+    mediaQuery.lt("created_at", before);
+  }
   const [{ data: photos, error }, { data: media, error: mediaError }] = await Promise.all([
-    client.from("photos").select(photoColumns()).eq("event_id", event.id).eq("status", "approved").order("created_at", { ascending: false }),
-    client.from("event_media").select(mediaColumns()).eq("event_id", event.id).eq("upload_status", "uploaded").eq("approval_status", "approved").order("created_at", { ascending: false })
+    photoQuery,
+    mediaQuery
   ]);
   if (error || mediaError) throw error || mediaError;
   const galleryPhotos = [...(photos || []), ...mapEventMedia(media || [])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  return json({ event, photos: await signedPhotos(client, galleryPhotos) });
+  const pagePhotos = galleryPhotos.slice(0, limit);
+  const lastPhoto = pagePhotos.at(-1);
+  return json({ event, photos: await signedPhotos(client, pagePhotos), next_cursor: galleryPhotos.length > limit && lastPhoto ? lastPhoto.created_at : null });
 }
 
 async function validEvent(client: SupabaseClient, slug: string, token: string) { const {data,error}=await client.from("events").select(`${eventColumns},access_token_hash`).eq("slug",slug).neq("status","deleted").single(); if(error||!data)throw new HTTPError(404,"Event not found","not_found"); const cfg=await config(client); if(!token||!safeEqual(data.access_token_hash,await tokenHash(token,cfg.token_pepper)))throw new HTTPError(401,"Unauthorized","unauthorized"); delete data.access_token_hash; return data; }
@@ -255,6 +266,7 @@ async function deriveAccessToken(eventID:string,version:string,pepper:string){re
 function guestURL(slug:string,token:string){const base=Deno.env.get("PUBLIC_WEB_URL")||"https://one-shot-one-night.vercel.app";return `${base}/guest-upload/${slug}${token?`?token=${encodeURIComponent(token)}`:""}`;}
 function extension(type:string){return type==="image/png"?"png":type==="image/webp"?"webp":type==="image/heic"?"heic":type==="image/heif"?"heif":type==="video/mp4"?"mp4":type==="video/quicktime"?"mov":type==="video/webm"?"webm":"jpg";}
 function positiveInt(value:unknown){const n=Number(value);return Number.isInteger(n)&&n>0?n:null;}
+function validDateCursor(value:string|null){if(!value)return "";const date=new Date(value);return Number.isNaN(date.getTime())?"":date.toISOString();}
 function slugify(v:string){return v.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,80)||"event";}
 function id26(){return crypto.randomUUID().replaceAll("-","").slice(0,26).toUpperCase();}
 function randomToken(){const b=crypto.getRandomValues(new Uint8Array(32));return btoa(String.fromCharCode(...b)).replaceAll("+","-").replaceAll("/","_").replaceAll("=","");}

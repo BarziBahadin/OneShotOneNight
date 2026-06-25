@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Calendar, Camera, ChevronLeft, ChevronRight, Download, Grid3X3, Heart, Images, MapPin, QrCode, Share2, Users, X } from "lucide-react";
 import { EventRecord, guestGallery, guestURL, PhotoRecord, rememberGuestAccessToken, storedGuestAccessToken } from "@/lib/api";
 
@@ -14,30 +14,50 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
   const [qrDataURL, setQRDataURL] = useState("");
   const [toast, setToast] = useState("");
   const [mode, setMode] = useState<GalleryMode>("classic");
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const activeToken = useMemo(() => accessToken || storedGuestAccessToken(slug), [slug, accessToken]);
   const link = useMemo(() => guestURL(slug, activeToken), [slug, activeToken]);
-  const visiblePhotos = photos.filter((photo) => photo.status === "approved" && photo.is_developed !== false);
+  const visiblePhotos = useMemo(() => photos.filter((photo) => photo.status === "approved" && photo.is_developed !== false), [photos]);
   const locked = Boolean(status && /developing|unlock|reveal/i.test(status));
 
-  useEffect(() => {
-    async function load() {
-      try {
-        if (activeToken) {
-          rememberGuestAccessToken(slug, activeToken);
-          window.history.replaceState({}, "", `/gallery/${slug}`);
-        }
-        const out = await guestGallery(slug, activeToken);
-        setEvent(out.event);
-        setPhotos(out.photos);
-        setStatus(out.photos.length ? "" : "No approved photos yet.");
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to load the album.";
-        setStatus(message.includes("reveal_not_reached") ? "Photos are sealed until the reveal. Come back when the album unlocks." : message);
+  const loadGalleryPage = useCallback(async (before?: string | null, append = false) => {
+    if (append) setLoadingMore(true);
+    else setStatus("Loading...");
+    try {
+      if (activeToken) {
+        rememberGuestAccessToken(slug, activeToken);
+        window.history.replaceState({}, "", `/gallery/${slug}`);
       }
+      const out = await guestGallery(slug, activeToken, { before, limit: 24 });
+      setEvent(out.event);
+      setNextCursor(out.next_cursor ?? null);
+      setPhotos((current) => {
+        if (!append) return out.photos;
+        const seen = new Set(current.map((photo) => photo.id));
+        return [...current, ...out.photos.filter((photo) => !seen.has(photo.id))];
+      });
+      if (!append) setStatus(out.photos.length ? "" : "No approved photos yet.");
+      else if (out.photos.length) setStatus("");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load the album.";
+      setStatus(message.includes("reveal_not_reached") ? "Photos are sealed until the reveal. Come back when the album unlocks." : message);
+    } finally {
+      if (append) setLoadingMore(false);
     }
-    load();
-  }, [slug, activeToken]);
+  }, [activeToken, slug]);
+
+  useEffect(() => {
+    setPhotos([]);
+    setNextCursor(null);
+    void loadGalleryPage(null, false);
+  }, [loadGalleryPage]);
+
+  const loadMore = useCallback(() => {
+    if (!nextCursor || loadingMore || status) return;
+    void loadGalleryPage(nextCursor, true);
+  }, [loadGalleryPage, loadingMore, nextCursor, status]);
 
   useEffect(() => {
     if (!showQR) return;
@@ -82,9 +102,9 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
   return (
     <>
       {mode === "album" ? (
-        <AlbumGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} slug={slug} onClassicView={() => setMode("classic")} onShareQR={() => setShowQR(true)} />
+        <AlbumGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} slug={slug} hasMore={Boolean(nextCursor)} loadingMore={loadingMore} onLoadMore={loadMore} onClassicView={() => setMode("classic")} onShareQR={() => setShowQR(true)} />
       ) : (
-        <ClassicGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} slug={slug} onAlbumView={() => setMode("album")} onShareQR={() => setShowQR(true)} />
+        <ClassicGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} slug={slug} hasMore={Boolean(nextCursor)} loadingMore={loadingMore} onLoadMore={loadMore} onAlbumView={() => setMode("album")} onShareQR={() => setShowQR(true)} />
       )}
 
       {showQR ? (
@@ -127,6 +147,9 @@ function ClassicGalleryView({
   status,
   locked,
   slug,
+  hasMore,
+  loadingMore,
+  onLoadMore,
   onAlbumView,
   onShareQR
 }: {
@@ -135,11 +158,14 @@ function ClassicGalleryView({
   status: string;
   locked: boolean;
   slug: string;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
   onAlbumView: () => void;
   onShareQR: () => void;
 }) {
   return (
-    <main className="relative min-h-[100svh] overflow-hidden bg-[#030303] text-white">
+    <main className="relative min-h-[100svh] overflow-x-hidden bg-[#030303] text-white">
       <img src="/pics/golden-event-640.webp" alt="" width="640" height="960" decoding="async" className="fixed inset-0 h-full w-full scale-105 object-cover opacity-35 blur-sm" />
       <div className="fixed inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.72),rgba(0,0,0,0.25)_34%,rgba(0,0,0,0.98))]" />
 
@@ -166,10 +192,10 @@ function ClassicGalleryView({
           <header className="text-center">
             <p className="text-xs font-bold uppercase text-white/45">The photographs</p>
             <h1 className="mx-auto mt-3 max-w-2xl text-5xl font-semibold leading-[0.9] sm:text-7xl">{event?.name ?? "Gallery"}</h1>
-            <p className="mx-auto mt-5 max-w-xl text-sm leading-6 text-white/55">{event ? revealCopy(event, locked) : "Loading the album..."}</p>
+            <p className="mx-auto mt-5 max-w-xl text-sm leading-6 text-white/55">{event ? revealCopy(event, locked) : status && status !== "Loading..." ? status : "Loading the album..."}</p>
           </header>
 
-          <div className="mx-auto mt-6 grid max-w-xl grid-cols-2 gap-3 text-center text-sm">
+          <div className="mx-auto mt-6 grid max-w-xl grid-cols-1 gap-3 text-center text-sm sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3">
               <strong className="block text-2xl text-white">{photos.length}</strong>
               <span className="text-white/48">photos</span>
@@ -181,7 +207,7 @@ function ClassicGalleryView({
           </div>
 
           {locked || !event?.allow_immediate_gallery ? (
-            <div className="mx-auto mt-5 w-fit rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-bold text-white/70">
+            <div className="mx-auto mt-5 max-w-full rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-center text-xs font-bold text-white/70">
               Only the host can see everyone's photos
             </div>
           ) : null}
@@ -209,6 +235,7 @@ function ClassicGalleryView({
               ))}
             </div>
           )}
+          <LoadMoreTrigger hasMore={hasMore} loadingMore={loadingMore} onLoadMore={onLoadMore} />
         </section>
       </div>
     </main>
@@ -221,6 +248,9 @@ function AlbumGalleryView({
   status,
   locked,
   slug,
+  hasMore,
+  loadingMore,
+  onLoadMore,
   onClassicView,
   onShareQR
 }: {
@@ -229,6 +259,9 @@ function AlbumGalleryView({
   status: string;
   locked: boolean;
   slug: string;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
   onClassicView: () => void;
   onShareQR: () => void;
 }) {
@@ -272,7 +305,7 @@ function AlbumGalleryView({
   const attendeeCount = event?.max_guests ? `${event.max_guests}` : "Hosts";
 
   return (
-    <main className="relative min-h-[100svh] overflow-hidden bg-[#f7efe1] text-[#2f2419]">
+    <main className="relative min-h-[100svh] overflow-x-hidden bg-[#f7efe1] text-[#2f2419]">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(165,108,52,0.18),transparent_26rem),radial-gradient(circle_at_82%_4%,rgba(91,47,24,0.10),transparent_24rem),linear-gradient(180deg,#fff8ea_0%,#f7efe1_38%,#eadcc7_100%)]" />
       <div className="pointer-events-none fixed inset-0 opacity-[0.28] [background-image:radial-gradient(rgba(89,61,35,0.22)_0.7px,transparent_0.7px)] [background-size:4px_4px]" />
       <div className="pointer-events-none fixed inset-x-0 top-0 h-48 bg-gradient-to-b from-white/55 to-transparent" />
@@ -299,7 +332,10 @@ function AlbumGalleryView({
         {status ? (
           status === "Loading..." ? <LoadingState /> : <AlbumEmptyState locked={locked} message={status} />
         ) : (
-          <PhotoGalleryGrid photos={photos} onOpen={setActiveIndex} />
+          <>
+            <PhotoGalleryGrid photos={photos} onOpen={setActiveIndex} />
+            <LoadMoreTrigger hasMore={hasMore} loadingMore={loadingMore} onLoadMore={onLoadMore} />
+          </>
         )}
       </div>
 
@@ -471,6 +507,33 @@ function LightboxViewer({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LoadMoreTrigger({ hasMore, loadingMore, onLoadMore }: { hasMore: boolean; loadingMore: boolean; onLoadMore: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    const node = ref.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onLoadMore();
+      },
+      { rootMargin: "900px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, onLoadMore]);
+
+  if (!hasMore) return null;
+  return (
+    <div ref={ref} className="mt-8 flex justify-center">
+      <button type="button" onClick={onLoadMore} disabled={loadingMore} className="rounded-full border border-current/15 bg-white/10 px-5 py-3 text-sm font-bold disabled:opacity-60">
+        {loadingMore ? "Loading photos..." : "Load more photos"}
+      </button>
     </div>
   );
 }

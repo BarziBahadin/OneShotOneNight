@@ -118,6 +118,12 @@ export type AdminEventDetail = {
   stats: AdminOverview;
 };
 
+export type GalleryResponse = {
+  event: EventRecord;
+  photos: PhotoRecord[];
+  next_cursor?: string | null;
+};
+
 export class APIError extends Error {
   constructor(
     message: string,
@@ -366,8 +372,12 @@ function contentTypeFromFileName(name: string) {
   return "image/jpeg";
 }
 
-export function guestGallery(slug: string, accessToken: string) {
-  return request<{ event: EventRecord; photos: PhotoRecord[] }>(`/api/v1/gallery/${slug}`, {
+export function guestGallery(slug: string, accessToken: string, options?: { before?: string | null; limit?: number }) {
+  const search = new URLSearchParams();
+  if (options?.before) search.set("before", options.before);
+  if (options?.limit) search.set("limit", String(options.limit));
+  const suffix = search.toString() ? `?${search}` : "";
+  return request<GalleryResponse>(`/api/v1/gallery/${slug}${suffix}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 }
