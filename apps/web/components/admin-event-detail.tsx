@@ -156,6 +156,10 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
     () => detail.photos.filter((photo) => photo.status !== "deleted").sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [detail.photos]
   );
+  const guestNames = useMemo(
+    () => new Map(detail.guests.map((guest, index) => [guest.id, guest.display_name?.trim() || `Guest ${index + 1}`])),
+    [detail.guests]
+  );
 
   async function downloadPhotos() {
     const blob = await adminDownloadPhotoArchive(detail.event.id);
@@ -264,6 +268,9 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
                     <span className="rounded-md bg-skywash px-2 py-1 font-semibold">{photo.status}</span>
                     <span className="text-moss">{new Date(photo.created_at).toLocaleString()}</span>
                   </div>
+                  <p className="text-sm font-semibold">
+                    Uploaded by {photo.guest_name?.trim() || (photo.guest_id ? guestNames.get(photo.guest_id) : "") || "Guest"}
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     {photo.status === "pending" ? (
                       <IconButton label="Approve" onClick={() => moderate(photo.id, "approved")}><Check className="h-5 w-5" /></IconButton>
@@ -287,6 +294,15 @@ function EventWorkspace({ detail, guestLink, qr, copied, onCopied, onToast, onCh
 }
 
 function Guests({ detail, onChange }: { detail: AdminEventDetail; onChange: () => Promise<void> }) {
+  const guestDisplayNames = new Set(detail.guests.map((guest) => guest.display_name?.trim()).filter(Boolean));
+  const mediaGuestNames = Array.from(
+    new Set(
+      detail.photos
+        .map((photo) => photo.guest_name?.trim())
+        .filter((name): name is string => Boolean(name) && !guestDisplayNames.has(name))
+    )
+  );
+
   async function toggle(id: string, blocked: boolean) {
     await adminUpdateGuest(detail.event.id, id, blocked ? "active" : "blocked");
     await onChange();
@@ -296,7 +312,7 @@ function Guests({ detail, onChange }: { detail: AdminEventDetail; onChange: () =
       {detail.guests.map((guest, index) => (
         <article key={guest.id} className="surface flex flex-wrap items-center justify-between gap-4 p-4">
           <div>
-            <h3 className="font-semibold">Guest {index + 1}</h3>
+            <h3 className="font-semibold">{guest.display_name?.trim() || `Guest ${index + 1}`}</h3>
             <p className="mt-1 text-sm text-moss">{guest.upload_count} uploads · last active {new Date(guest.last_seen_at).toLocaleString()}</p>
           </div>
           <button onClick={() => toggle(guest.id, guest.status === "blocked")} className="btn-ghost px-3 py-2">
@@ -304,7 +320,15 @@ function Guests({ detail, onChange }: { detail: AdminEventDetail; onChange: () =
           </button>
         </article>
       ))}
-      {!detail.guests.length ? <p className="surface px-4 py-6 text-center text-moss">No guests have joined yet.</p> : null}
+      {mediaGuestNames.map((name) => (
+        <article key={name} className="surface flex flex-wrap items-center justify-between gap-4 p-4">
+          <div>
+            <h3 className="font-semibold">{name}</h3>
+            <p className="mt-1 text-sm text-moss">Uploaded through photo upload</p>
+          </div>
+        </article>
+      ))}
+      {!detail.guests.length && !mediaGuestNames.length ? <p className="surface px-4 py-6 text-center text-moss">No guests have joined yet.</p> : null}
     </section>
   );
 }

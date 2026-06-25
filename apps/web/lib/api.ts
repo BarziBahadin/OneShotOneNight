@@ -75,6 +75,8 @@ export type GuestRecord = {
 
 export type PhotoRecord = {
   id: string;
+  guest_id?: string;
+  guest_name?: string;
   object_key: string;
   public_url?: string;
   thumbnail_url?: string;
