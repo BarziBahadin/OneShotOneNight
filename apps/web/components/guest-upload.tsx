@@ -1,7 +1,8 @@
 "use client";
 
-import { ChangeEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ImagePlus, Images, LockKeyhole, ShieldCheck, Sparkles, UploadCloud, X } from "lucide-react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Check, Images, LockKeyhole, ShieldCheck, Sparkles, UploadCloud, X } from "lucide-react";
+import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { EventRecord, joinGuest, rememberGuestAccessToken, storedGuestAccessToken, uploadGuestPhoto } from "@/lib/api";
 
 type UploadResult = {
@@ -19,10 +20,13 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const [results, setResults] = useState<UploadResult[]>([]);
   const [batchTotal, setBatchTotal] = useState(0);
   const [batchDone, setBatchDone] = useState(0);
+  const [currentUpload, setCurrentUpload] = useState<File | null>(null);
   const [guestName, setGuestName] = useState("");
-  const fileInput = useRef<HTMLInputElement>(null);
   const autoJoinAttempted = useRef(false);
   const activeToken = useMemo(() => normalizeToken(accessToken) || storedGuestAccessToken(slug), [accessToken, slug]);
+  const maxPhotosForScroll = event?.max_photos_per_guest ?? 0;
+  const remainingForScroll = remaining ?? maxPhotosForScroll;
+  const hasUploadedPhoto = Boolean(event && Math.max(maxPhotosForScroll - remainingForScroll, 0) > 0);
 
   useEffect(() => {
     if (autoJoinAttempted.current || !activeToken) return;
@@ -30,6 +34,14 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
     autoJoinAttempted.current = true;
     void join();
   }, [activeToken]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = hasUploadedPhoto ? "" : "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [hasUploadedPhoto]);
 
   async function join() {
     setBusy(true);
@@ -51,7 +63,6 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
 
     if (!displayName) {
       setStatus("Please enter your name before uploading photos.");
-      if (fileInput.current) fileInput.current.value = "";
       return;
     }
 
@@ -73,6 +84,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
     let latestRemaining = availableSlots;
 
     for (const file of uploadableFiles) {
+      setCurrentUpload(file);
       try {
         const out = await uploadGuestPhoto(slug, activeToken, file, "", displayName);
         latestRemaining = out.remaining_shots;
@@ -92,12 +104,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
 
     setRemaining(latestRemaining);
     setUploading(false);
-    if (fileInput.current) fileInput.current.value = "";
-  }
-
-  function onFilesSelected(inputEvent: ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(inputEvent.target.files ?? []);
-    void uploadFiles(selected);
+    setCurrentUpload(null);
   }
 
   if (!event) {
@@ -125,22 +132,25 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const uploadedCount = Math.max(maxPhotos - shotsRemaining, 0);
   const progress = batchTotal > 0 ? Math.round((batchDone / batchTotal) * 100) : 0;
   const canUpload = Boolean(guestName.trim()) && !uploading && shotsRemaining > 0;
+  const hostDescription = (event.description || event.host_message || "").trim();
 
   return (
-    <main className="reveal-page">
+    <main className={`reveal-page ${hasUploadedPhoto ? "reveal-page-scrollable" : ""}`}>
       <img src="/pics/golden-event.jpg" alt="A candlelit dinner table at sunset" className="reveal-bg" />
       <div className="reveal-vignette" />
+      {uploading ? <UploadLoadingScreen progress={progress} file={currentUpload} batchDone={batchDone} batchTotal={batchTotal} /> : null}
 
       <section className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[520px] flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
-        <header className="flex items-center justify-between">
-          <a href="/" className="reveal-icon-button" aria-label="Close upload"><X className="h-6 w-6" /></a>
+        <header className="flex items-center justify-end">
           <span className="reveal-chip"><LockKeyhole className="h-5 w-5" /> Private upload</span>
         </header>
 
         <div className="mt-[9vh] sm:mt-[11vh]">
           <p className="reveal-kicker">Send your photos</p>
           <h1 className="mt-3 font-serif text-[2.8rem] font-semibold leading-[0.96] text-white min-[390px]:text-[3.35rem]">{event.name}</h1>
-          <p className="mt-4 max-w-sm text-sm leading-6 text-white/62">Upload one photo or select several at once. The host receives them privately for this event.</p>
+          <p className="mt-4 max-w-sm text-sm leading-6 text-white/62">
+            {hostDescription || "Upload one photo or select several at once. The host receives them privately for this event."}
+          </p>
         </div>
 
         <section className="mt-8 grid gap-4 rounded-[2rem] border border-white/10 bg-black/64 p-4 shadow-[0_24px_70px_rgb(0_0_0/0.42)] backdrop-blur-2xl">
@@ -160,27 +170,16 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
             <p className="text-xs leading-5 text-white/46">This helps the host know who to thank for each photo.</p>
           </div>
 
-          <button
-            type="button"
-            disabled={!canUpload}
-            onClick={() => fileInput.current?.click()}
-            className="grid min-h-48 place-items-center rounded-[1.5rem] border border-dashed border-white/18 bg-white/[0.06] px-5 text-center disabled:pointer-events-none disabled:opacity-45"
-          >
-            <span className="grid justify-items-center gap-3">
-              <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_40px_rgb(37_99_235/0.34)]">
-                {uploading ? <UploadCloud className="h-7 w-7" /> : <ImagePlus className="h-7 w-7" />}
-              </span>
-              <span className="text-base font-semibold">{uploading ? `Uploading ${batchDone} of ${batchTotal}` : "Choose photos"}</span>
-              <span className="text-sm leading-6 text-white/50">JPEG, PNG, WebP, HEIC, or HEIF</span>
-            </span>
-          </button>
-          <input
-            ref={fileInput}
-            onChange={onFilesSelected}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-            multiple
-            className="sr-only"
+          <FileUpload.DropZone
+            isDisabled={!canUpload}
+            allowsMultiple
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+            maxSize={10 * 1024 * 1024}
+            hint="JPEG, PNG, WebP, HEIC, or HEIF up to 10 MB"
+            onDropFiles={(files) => void uploadFiles(Array.from(files))}
+            onDropUnacceptedFiles={() => setStatus("Choose a JPEG, PNG, WebP, HEIC, or HEIF photo.")}
+            onSizeLimitExceed={() => setStatus("Each photo must be 10 MB or smaller.")}
+            className="min-h-48 rounded-[1.5rem] border border-dashed border-white/18 bg-white/[0.06] px-5 py-8 text-center text-white ring-0 disabled:pointer-events-none"
           />
 
           {uploading ? (
@@ -210,6 +209,38 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
         </section>
       </section>
     </main>
+  );
+}
+
+function UploadLoadingScreen({ progress, file, batchDone, batchTotal }: { progress: number; file: File | null; batchDone: number; batchTotal: number }) {
+  const itemProgress = batchTotal > 0 && batchDone >= batchTotal ? 100 : Math.max(8, progress);
+
+  return (
+    <div className="fixed inset-0 z-30 grid place-items-center bg-black/86 px-5 text-white backdrop-blur-xl" role="status" aria-live="polite">
+      <div className="grid w-full max-w-sm gap-5 rounded-[2rem] border border-white/10 bg-[#0b0a09]/92 p-5 shadow-[0_24px_70px_rgb(0_0_0/0.55)]">
+        <div className="grid justify-items-center gap-3 text-center">
+          <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_16px_40px_rgb(37_99_235/0.34)]">
+            <UploadCloud className="h-6 w-6 animate-pulse" />
+          </span>
+          <div>
+            <p className="reveal-kicker">Uploading</p>
+            <h2 className="mt-2 font-serif text-3xl font-semibold">Saving your photos</h2>
+            <p className="mt-2 text-sm text-white/54">{batchTotal ? `${batchDone} of ${batchTotal} complete` : "Preparing upload"}</p>
+          </div>
+        </div>
+        <FileUpload.Root>
+          <FileUpload.List>
+            <FileUpload.ListItemProgressBar
+              name={file?.name || "Preparing upload"}
+              size={file?.size || 0}
+              progress={itemProgress}
+              type="image"
+              className="border border-white/10 bg-white/[0.06] text-white ring-0"
+            />
+          </FileUpload.List>
+        </FileUpload.Root>
+      </div>
+    </div>
   );
 }
 

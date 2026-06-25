@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.9
 import JSZip from "npm:jszip@3.10.1";
 
 const bucket = "oneshotonenight";
-const eventColumns = "id,slug,name,description,mode,status,starts_at,ends_at,reveal_at,max_guests,max_photos_per_guest,allow_gallery_uploads,prefer_camera_capture,allow_immediate_gallery,auto_approve_photos,offline_upload_grace_hours,created_at,updated_at";
+const eventColumns = "id,slug,name,description,host_message,mode,status,starts_at,ends_at,reveal_at,max_guests,max_photos_per_guest,allow_gallery_uploads,prefer_camera_capture,allow_immediate_gallery,auto_approve_photos,offline_upload_grace_hours,created_at,updated_at";
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "video/mp4", "video/quicktime", "video/webm"]);
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, idempotency-key, x-guest-token", "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS" };
 

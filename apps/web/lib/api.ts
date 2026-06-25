@@ -48,6 +48,7 @@ export type EventRecord = {
   slug: string;
   name: string;
   description: string;
+  host_message?: string;
   mode: "standard_upload" | "disposable_camera" | "live_gallery" | "delayed_reveal";
   status: "open" | "locked" | "deleted";
   starts_at: string;

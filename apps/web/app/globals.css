@@ -244,6 +244,10 @@ input::placeholder, textarea::placeholder {
     @apply relative min-h-[100svh] overflow-hidden bg-black text-white;
   }
 
+  .reveal-page-scrollable {
+    @apply overflow-y-auto;
+  }
+
   .reveal-bg {
     @apply fixed inset-0 h-full w-full object-cover;
     object-position: 51% center;
