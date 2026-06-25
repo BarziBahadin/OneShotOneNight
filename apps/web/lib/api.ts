@@ -277,77 +277,62 @@ export function joinGuest(slug: string, accessToken: string, displayName: string
 
 export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string) {
   const contentType = file.type || contentTypeFromFileName(file.name);
-  const session = await invokeFunction<{
-    upload_session: { id: string; status: string };
-    remaining_shots: number;
-    upload_urls: Array<{
-      media_id: string;
-      file_name: string;
-      file_type: string;
-      file_size: number;
-      media_type: "photo" | "video";
-      storage_path: string;
-      upload_url: string;
-      upload_headers: Record<string, string>;
-    }>;
-  }>("create-guest-upload-session", {
-    event_slug: slug,
-    token: accessToken,
-    guest_name: "Guest",
-    guest_message: message,
-    files: [
-      {
+  const dimensions = await imageDimensions(file);
+  const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; upload_token: string; remaining_shots: number }>(
+    `/api/v1/guest/${slug}/uploads/presign`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": randomID() },
+      body: JSON.stringify({
+        access_token: accessToken,
         file_name: file.name,
-        file_type: contentType,
-        file_size: file.size
-      }
-    ]
-  });
-  const uploadTarget = session.upload_urls[0];
-  if (!uploadTarget) throw new APIError("Upload session did not return a signed URL.", 500, "missing_upload_url");
+        content_type: contentType,
+        size_bytes: file.size,
+        width_px: dimensions?.width,
+        height_px: dimensions?.height
+      })
+    }
+  );
 
-  const uploaded = await fetch(uploadTarget.upload_url, {
+  const uploaded = await fetch(presign.upload_url, {
     method: "PUT",
-    headers: uploadTarget.upload_headers,
+    headers: presign.upload_headers,
     body: file
   });
   if (!uploaded.ok) {
     throw new APIError("Upload failed", uploaded.status, "upload_failed");
   }
 
-  const complete = await invokeFunction<{ upload_session: { id: string; status: string }; media: unknown[] }>("complete-guest-upload", {
-    event_slug: slug,
-    token: accessToken,
-    upload_session_id: session.upload_session.id,
-    uploaded_files: [
-      {
-        media_id: uploadTarget.media_id,
-        file_name: uploadTarget.file_name,
-        file_type: uploadTarget.file_type,
-        file_size: file.size,
-        storage_path: uploadTarget.storage_path
-      }
-    ]
+  return request<{ photo: PhotoRecord; remaining_shots: number }>(`/api/v1/guest/${slug}/photos`, {
+    method: "POST",
+    body: JSON.stringify({
+      access_token: accessToken,
+      photo_id: presign.photo_id,
+      upload_token: presign.upload_token,
+      width_px: dimensions?.width,
+      height_px: dimensions?.height,
+      message
+    })
   });
-  return { media: complete.media, remaining_shots: session.remaining_shots };
 }
 
-async function invokeFunction<T>(name: string, payload: unknown): Promise<T> {
-  let res: Response;
+async function imageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  if (!file.type.startsWith("image/")) return null;
+  const url = URL.createObjectURL(file);
   try {
-    res = await fetch(`${functionsBaseURL()}/${name}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    const image = new Image();
+    const loaded = new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Unable to decode image dimensions"));
     });
+    image.src = url;
+    await loaded;
+    return image.naturalWidth && image.naturalHeight ? { width: image.naturalWidth, height: image.naturalHeight } : null;
   } catch {
-    throw new Error(`Cannot reach the Supabase Edge Function ${name}.`);
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
   }
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: "Request failed", error: undefined }));
-    throw new APIError(error.message ?? "Request failed", res.status, error.error);
-  }
-  return (await res.json()) as T;
 }
 
 function randomID() {
@@ -372,9 +357,6 @@ function contentTypeFromFileName(name: string) {
   if (lower.endsWith(".webp")) return "image/webp";
   if (lower.endsWith(".heic")) return "image/heic";
   if (lower.endsWith(".heif")) return "image/heif";
-  if (lower.endsWith(".mp4")) return "video/mp4";
-  if (lower.endsWith(".mov") || lower.endsWith(".qt")) return "video/quicktime";
-  if (lower.endsWith(".webm")) return "video/webm";
   return "image/jpeg";
 }
 

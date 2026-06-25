@@ -4,6 +4,15 @@
 # working directory name when running `supabase init`.
 project_id = "OneShotOneNight"
 
+[functions.api]
+verify_jwt = false
+
+[functions.create-guest-upload-session]
+verify_jwt = false
+
+[functions.complete-guest-upload]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.
