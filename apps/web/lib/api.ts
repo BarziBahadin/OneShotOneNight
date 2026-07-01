@@ -322,16 +322,24 @@ async function prepareGuestPhoto(slug: string, accessToken: string, file: File, 
   return { ...presign, dimensions };
 }
 
-async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File) {
-  const uploaded = await fetch(prepared.upload_url, {
-    method: "PUT",
-    headers: prepared.upload_headers,
-    body: file
+async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File, onProgress?: (loaded: number) => void) {
+  await new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", prepared.upload_url);
+    Object.entries(prepared.upload_headers).forEach(([name, value]) => request.setRequestHeader(name, value));
+    request.upload.onprogress = (event) => onProgress?.(event.lengthComputable ? event.loaded : 0);
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress?.(file.size);
+        resolve();
+      } else {
+        reject(new APIError("Upload failed", request.status, "upload_failed"));
+      }
+    };
+    request.onerror = () => reject(new APIError("Upload failed", 0, "upload_failed"));
+    request.onabort = () => reject(new APIError("Upload cancelled", 0, "upload_cancelled"));
+    request.send(file);
   });
-  if (!uploaded.ok) {
-    throw new APIError("Upload failed", uploaded.status, "upload_failed");
-  }
-
 }
 
 function completeGuestPhoto(slug: string, accessToken: string, prepared: PreparedGuestPhoto, message: string, displayName: string) {
@@ -354,7 +362,8 @@ export async function uploadGuestPhotos(
   accessToken: string,
   files: File[],
   displayName: string,
-  onResult: (file: File, result: { ok: boolean; message: string; remaining_shots?: number }) => void
+  onResult: (file: File, result: { ok: boolean; message: string; remaining_shots?: number }) => void,
+  onProgress?: (progress: { file: File; loaded: number; total: number; percent: number }) => void
 ) {
   const prepared: Array<{ file: File; upload: PreparedGuestPhoto }> = [];
   for (const file of files) {
@@ -365,11 +374,17 @@ export async function uploadGuestPhotos(
     }
   }
 
+  const loadedByFile = new Map<File, number>();
+  const totalBytes = prepared.reduce((total, item) => total + item.file.size, 0);
   const workers = Array.from({ length: Math.min(3, prepared.length) }, async (_, workerIndex) => {
     for (let index = workerIndex; index < prepared.length; index += 3) {
       const item = prepared[index];
       try {
-        await putGuestPhoto(item.upload, item.file);
+        await putGuestPhoto(item.upload, item.file, (loaded) => {
+          loadedByFile.set(item.file, loaded);
+          const totalLoaded = [...loadedByFile.values()].reduce((total, value) => total + value, 0);
+          onProgress?.({ file: item.file, loaded: totalLoaded, total: totalBytes, percent: totalBytes ? Math.round((totalLoaded / totalBytes) * 100) : 0 });
+        });
       } catch (error) {
         onResult(item.file, { ok: false, message: error instanceof Error ? error.message : "Upload failed" });
         prepared[index] = { ...item, upload: { ...item.upload, upload_token: "" } };

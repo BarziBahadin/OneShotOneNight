@@ -20,6 +20,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const [results, setResults] = useState<UploadResult[]>([]);
   const [batchTotal, setBatchTotal] = useState(0);
   const [batchDone, setBatchDone] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [currentUpload, setCurrentUpload] = useState<File | null>(null);
   const [guestName, setGuestName] = useState("");
   const autoJoinAttempted = useRef(false);
@@ -68,6 +69,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
     setStatus(files.length > uploadableFiles.length ? `Uploading the first ${uploadableFiles.length} photos allowed for this event.` : "");
     setResults([]);
     setBatchDone(0);
+    setUploadProgress(0);
     setBatchTotal(uploadableFiles.length);
 
     setCurrentUpload(uploadableFiles[0] ?? null);
@@ -77,6 +79,9 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
       if (result.remaining_shots !== undefined) setRemaining(result.remaining_shots);
       setBatchDone((value) => value + 1);
       setResults([...nextResults]);
+    }, ({ file, percent }) => {
+      setCurrentUpload(file);
+      setUploadProgress(percent);
     });
     if (out.remaining_shots !== undefined) setRemaining(out.remaining_shots);
     setUploading(false);
@@ -106,7 +111,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   const maxPhotos = event.max_photos_per_guest;
   const shotsRemaining = remaining ?? maxPhotos;
   const uploadedCount = Math.max(maxPhotos - shotsRemaining, 0);
-  const progress = batchTotal > 0 ? Math.round((batchDone / batchTotal) * 100) : 0;
+  const progress = uploading ? uploadProgress : batchTotal > 0 ? Math.round((batchDone / batchTotal) * 100) : 0;
   const canUpload = Boolean(guestName.trim()) && !uploading && shotsRemaining > 0;
   const hostDescription = (event.description || event.host_message || "").trim();
 
@@ -150,11 +155,11 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
             isDisabled={!canUpload}
             allowsMultiple
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-            maxSize={10 * 1024 * 1024}
-            hint="JPEG, PNG, WebP, HEIC, or HEIF up to 10 MB"
+            maxSize={100 * 1024 * 1024}
+            hint="JPEG, PNG, WebP, HEIC, or HEIF up to 100 MB"
             onDropFiles={(files) => void uploadFiles(Array.from(files))}
             onDropUnacceptedFiles={() => setStatus("Choose a JPEG, PNG, WebP, HEIC, or HEIF photo.")}
-            onSizeLimitExceed={() => setStatus("Each photo must be 10 MB or smaller.")}
+            onSizeLimitExceed={() => setStatus("Each photo must be 100 MB or smaller.")}
             className="min-h-48 rounded-[1.5rem] border border-dashed border-white/18 bg-white/[0.06] px-5 py-8 text-center text-white ring-0 disabled:pointer-events-none"
           />
 
@@ -198,7 +203,7 @@ function UploadLoadingScreen({ progress, file, batchDone, batchTotal }: { progre
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Uploading photos</p>
-            <p className="truncate text-xs text-white/52">{file?.name || (batchTotal ? `${batchDone} of ${batchTotal} complete` : "Preparing upload")}</p>
+            <p className="truncate text-xs text-white/52">{file ? `${file.name} · ${Math.min(batchDone + 1, batchTotal)} of ${batchTotal}` : (batchTotal ? `${batchDone} of ${batchTotal} complete` : "Preparing upload")}</p>
           </div>
           <p className="text-sm font-semibold tabular-nums text-white/70">{progress}%</p>
         </div>
