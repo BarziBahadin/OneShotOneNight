@@ -207,7 +207,13 @@ function UploadProgressStatus({ progress, file, batchDone, batchTotal }: { progr
       >
         <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300" style={{ width: `${progress}%` }} />
       </div>
-      <p className="mt-2 text-xs leading-5 text-white/46">You can keep using this page while your photos upload.</p>
+      <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-300/15 bg-amber-300/[0.07] p-3">
+        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-200/80" aria-hidden="true" />
+        <p className="text-xs leading-5 text-white/58">
+          <span className="font-semibold text-amber-50">Some memories are worth the wait.</span>{" "}
+          We’re safely sending your photos in their original quality. Please keep this page open until the upload finishes.
+        </p>
+      </div>
     </div>
   );
 }

@@ -217,9 +217,9 @@ async function guestRoute(req: Request, parts: string[], client: SupabaseClient)
     if (!allowedTypes.has(body.content_type) || body.size_bytes <= 0 || body.size_bytes > 104857600) throw new HTTPError(400,"Invalid upload","validation_error");
     if (guest.upload_count >= event.max_photos_per_guest) throw new HTTPError(409,"Photo limit reached","upload_limit");
     const photoID=id26(), ext=extension(body.content_type), objectKey=`events/${event.id}/pending/${photoID}.${ext}`, uploadToken=randomToken();
-    const {data,error}=await client.storage.from(bucket).createSignedUploadUrl(objectKey); if(error)throw error;
+    const {data,error}=await client.storage.from(bucket).createSignedUploadUrl(objectKey); if(error||!data?.token)throw error||new HTTPError(502,"Storage did not issue an upload signature","storage_error");
     const cfg=await config(client); await client.from("upload_intents").insert({photo_id:photoID,event_id:event.id,guest_id:guest.id,object_key:objectKey,content_type:body.content_type,size_bytes:body.size_bytes,token_hash:await tokenHash(uploadToken,cfg.token_pepper),expires_at:new Date(Date.now()+24*60*60_000).toISOString()});
-    return json({photo_id:photoID,object_key:objectKey,upload_url:data.signedUrl,upload_headers:{"Content-Type":body.content_type},upload_token:uploadToken,remaining_shots:event.max_photos_per_guest-guest.upload_count});
+    return json({photo_id:photoID,object_key:objectKey,upload_url:data.signedUrl,upload_headers:{"Content-Type":body.content_type},resumable_url:`${storageBaseURL()}/storage/v1/upload/resumable/sign`,upload_signature:data.token,upload_token:uploadToken,remaining_shots:event.max_photos_per_guest-guest.upload_count});
   }
   if (action === "photos" && req.method === "POST") {
     const cfg=await config(client); const {data:intent}=await client.from("upload_intents").select("*").eq("photo_id",body.photo_id).eq("guest_id",guest.id).eq("used",false).gt("expires_at",new Date().toISOString()).maybeSingle();

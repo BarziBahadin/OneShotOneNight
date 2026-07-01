@@ -297,6 +297,9 @@ type PreparedGuestPhoto = {
   photo_id: string;
   upload_url: string;
   upload_headers: Record<string, string>;
+  resumable_url?: string;
+  upload_signature?: string;
+  object_key: string;
   upload_token: string;
   dimensions: { width: number; height: number } | null;
 };
@@ -304,7 +307,7 @@ type PreparedGuestPhoto = {
 async function prepareGuestPhoto(slug: string, accessToken: string, file: File, displayName: string): Promise<PreparedGuestPhoto> {
   const contentType = file.type || contentTypeFromFileName(file.name);
   const dimensions = await imageDimensions(file);
-  const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; upload_token: string; remaining_shots: number }>(
+  const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; resumable_url?: string; upload_signature?: string; upload_token: string; remaining_shots: number }>(
     `/api/v1/guest/${slug}/uploads/presign`,
     {
       method: "POST",
@@ -325,20 +328,26 @@ async function prepareGuestPhoto(slug: string, accessToken: string, file: File, 
 }
 
 async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File, slug: string, accessToken: string, onProgress?: (loaded: number) => void) {
+  const directUpload = Boolean(prepared.resumable_url && prepared.upload_signature);
   await new Promise<void>((resolve, reject) => {
     const upload = new tus.Upload(file, {
-      endpoint: `${apiBaseURL()}/api/v1/guest/${encodeURIComponent(slug)}/uploads/resumable/${prepared.photo_id}`,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "X-Guest-Token": guestDeviceToken()
-      },
+      endpoint: directUpload ? prepared.resumable_url! : `${apiBaseURL()}/api/v1/guest/${encodeURIComponent(slug)}/uploads/resumable/${prepared.photo_id}`,
+      headers: directUpload
+        ? { "x-signature": prepared.upload_signature! }
+        : { Authorization: `Bearer ${accessToken}`, "X-Guest-Token": guestDeviceToken() },
       chunkSize: 6 * 1024 * 1024,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       metadata: {
         filename: file.name,
-        filetype: file.type || "application/octet-stream"
+        filetype: file.type || "application/octet-stream",
+        ...(directUpload ? {
+          bucketName: "oneshotonenight",
+          objectName: prepared.object_key,
+          contentType: file.type || contentTypeFromFileName(file.name),
+          cacheControl: "3600"
+        } : {})
       },
       onProgress: (bytesUploaded) => onProgress?.(bytesUploaded),
       onError: (error) => reject(new APIError(error.message || "Upload failed", 0, "upload_failed")),
