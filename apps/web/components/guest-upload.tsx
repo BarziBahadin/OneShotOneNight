@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Images, LockKeyhole, ShieldCheck, Sparkles, UploadCloud, X } from "lucide-react";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
-import { EventRecord, joinGuest, rememberGuestAccessToken, storedGuestAccessToken, uploadGuestPhoto } from "@/lib/api";
+import { EventRecord, joinGuest, rememberGuestAccessToken, storedGuestAccessToken, uploadGuestPhotos } from "@/lib/api";
 
 type UploadResult = {
   name: string;
@@ -38,6 +38,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
     try {
       const out = await joinGuest(slug, activeToken, "");
       setEvent(out.event);
+      setGuestName(out.guest_name || "");
       setRemaining(out.remaining_shots);
     } catch (err) {
       setStatus(err instanceof Error ? friendlyJoinError(err.message) : "Unable to open this upload link.");
@@ -69,29 +70,15 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
     setBatchDone(0);
     setBatchTotal(uploadableFiles.length);
 
+    setCurrentUpload(uploadableFiles[0] ?? null);
     const nextResults: UploadResult[] = [];
-    let latestRemaining = availableSlots;
-
-    for (const file of uploadableFiles) {
-      setCurrentUpload(file);
-      try {
-        const out = await uploadGuestPhoto(slug, activeToken, file, "", displayName);
-        latestRemaining = out.remaining_shots;
-        setRemaining(out.remaining_shots);
-        nextResults.push({ name: file.name, ok: true, message: "Uploaded" });
-      } catch (err) {
-        nextResults.push({
-          name: file.name,
-          ok: false,
-          message: err instanceof Error ? friendlyJoinError(err.message) : "Upload failed"
-        });
-      } finally {
-        setBatchDone((value) => value + 1);
-        setResults([...nextResults]);
-      }
-    }
-
-    setRemaining(latestRemaining);
+    const out = await uploadGuestPhotos(slug, activeToken, uploadableFiles, displayName, (file, result) => {
+      nextResults.push({ name: file.name, ok: result.ok, message: result.ok ? result.message : friendlyJoinError(result.message) });
+      if (result.remaining_shots !== undefined) setRemaining(result.remaining_shots);
+      setBatchDone((value) => value + 1);
+      setResults([...nextResults]);
+    });
+    if (out.remaining_shots !== undefined) setRemaining(out.remaining_shots);
     setUploading(false);
     setCurrentUpload(null);
   }

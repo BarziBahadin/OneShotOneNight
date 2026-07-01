@@ -279,13 +279,27 @@ export function adminUpdateGuest(eventID: string, guestID: string, status: Guest
 }
 
 export function joinGuest(slug: string, accessToken: string, displayName: string) {
-  return request<{ event: EventRecord; remaining_shots: number; gallery_available: boolean }>(`/api/v1/guest/${slug}/join`, {
+  return request<{ event: EventRecord; guest_name: string; remaining_shots: number; gallery_available: boolean }>(`/api/v1/guest/${slug}/join`, {
     method: "POST",
     body: JSON.stringify({ access_token: accessToken, display_name: displayName })
   });
 }
 
 export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string, displayName = "") {
+  const prepared = await prepareGuestPhoto(slug, accessToken, file, displayName);
+  await putGuestPhoto(prepared, file);
+  return completeGuestPhoto(slug, accessToken, prepared, message, displayName);
+}
+
+type PreparedGuestPhoto = {
+  photo_id: string;
+  upload_url: string;
+  upload_headers: Record<string, string>;
+  upload_token: string;
+  dimensions: { width: number; height: number } | null;
+};
+
+async function prepareGuestPhoto(slug: string, accessToken: string, file: File, displayName: string): Promise<PreparedGuestPhoto> {
   const contentType = file.type || contentTypeFromFileName(file.name);
   const dimensions = await imageDimensions(file);
   const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; upload_token: string; remaining_shots: number }>(
@@ -305,27 +319,77 @@ export async function uploadGuestPhoto(slug: string, accessToken: string, file: 
     }
   );
 
-  const uploaded = await fetch(presign.upload_url, {
+  return { ...presign, dimensions };
+}
+
+async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File) {
+  const uploaded = await fetch(prepared.upload_url, {
     method: "PUT",
-    headers: presign.upload_headers,
+    headers: prepared.upload_headers,
     body: file
   });
   if (!uploaded.ok) {
     throw new APIError("Upload failed", uploaded.status, "upload_failed");
   }
 
+}
+
+function completeGuestPhoto(slug: string, accessToken: string, prepared: PreparedGuestPhoto, message: string, displayName: string) {
   return request<{ photo: PhotoRecord; remaining_shots: number }>(`/api/v1/guest/${slug}/photos`, {
     method: "POST",
     body: JSON.stringify({
       access_token: accessToken,
-      photo_id: presign.photo_id,
-      upload_token: presign.upload_token,
-      width_px: dimensions?.width,
-      height_px: dimensions?.height,
+      photo_id: prepared.photo_id,
+      upload_token: prepared.upload_token,
+      width_px: prepared.dimensions?.width,
+      height_px: prepared.dimensions?.height,
       display_name: displayName.trim(),
       message
     })
   });
+}
+
+export async function uploadGuestPhotos(
+  slug: string,
+  accessToken: string,
+  files: File[],
+  displayName: string,
+  onResult: (file: File, result: { ok: boolean; message: string; remaining_shots?: number }) => void
+) {
+  const prepared: Array<{ file: File; upload: PreparedGuestPhoto }> = [];
+  for (const file of files) {
+    try {
+      prepared.push({ file, upload: await prepareGuestPhoto(slug, accessToken, file, displayName) });
+    } catch (error) {
+      onResult(file, { ok: false, message: error instanceof Error ? error.message : "Upload failed" });
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(3, prepared.length) }, async (_, workerIndex) => {
+    for (let index = workerIndex; index < prepared.length; index += 3) {
+      const item = prepared[index];
+      try {
+        await putGuestPhoto(item.upload, item.file);
+      } catch (error) {
+        onResult(item.file, { ok: false, message: error instanceof Error ? error.message : "Upload failed" });
+        prepared[index] = { ...item, upload: { ...item.upload, upload_token: "" } };
+      }
+    }
+  });
+  await Promise.all(workers);
+
+  let remainingShots: number | undefined;
+  for (const item of prepared) {
+    if (!item.upload.upload_token) continue;
+    try {
+      const result = await completeGuestPhoto(slug, accessToken, item.upload, "", displayName);
+      remainingShots = result.remaining_shots;
+      onResult(item.file, { ok: true, message: "Uploaded", remaining_shots: result.remaining_shots });
+    } catch (error) {
+      onResult(item.file, { ok: false, message: error instanceof Error ? error.message : "Upload failed" });
+    }
+  }
+  return { remaining_shots: remainingShots };
 }
 
 async function imageDimensions(file: File): Promise<{ width: number; height: number } | null> {

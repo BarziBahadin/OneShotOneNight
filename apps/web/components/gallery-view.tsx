@@ -229,6 +229,7 @@ function ClassicGalleryView({
                   />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                     <figcaption className="line-clamp-2 text-xs leading-5 text-white/78">{photo.message || formatPhotoDate(photo.created_at)}</figcaption>
+                    {photo.guest_name ? <p className="mt-1 text-right text-[0.68rem] font-semibold text-white/72">From {photo.guest_name}</p> : null}
                   </div>
                 </figure>
               ))}
@@ -431,6 +432,7 @@ function PhotoCard({ photo, index, onOpen }: { photo: PhotoRecord; index: number
       </button>
       <figcaption className="px-2 pb-2 pt-3">
         <p className="line-clamp-2 text-xs leading-5 text-[#755a41]">{photo.message || formatPhotoDate(photo.created_at)}</p>
+        {photo.guest_name ? <p className="mt-1 text-right text-[0.68rem] font-bold text-[#8b6847]">From {photo.guest_name}</p> : null}
       </figcaption>
     </figure>
   );
@@ -505,6 +507,7 @@ function LightboxViewer({
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
+        {photo.guest_name ? <p className="mt-3 text-sm font-semibold text-white/72">From {photo.guest_name}</p> : null}
       </div>
     </div>
   );

@@ -50,6 +50,7 @@ export function GuestCamera({ slug, accessToken }: { slug: string; accessToken: 
     try {
       const out = await joinGuest(slug, activeToken, "");
       setEvent(out.event);
+      setGuestName(out.guest_name || "");
       setRemaining(out.remaining_shots);
       setGalleryAvailable(out.gallery_available);
     } catch (err) {

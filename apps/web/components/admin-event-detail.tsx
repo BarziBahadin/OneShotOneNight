@@ -166,6 +166,26 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, onToast, onChange 
     URL.revokeObjectURL(href);
   }
 
+  async function savePhoto(photo: PhotoRecord) {
+    const url = photo.public_url || photo.preview_url || photo.thumbnail_url;
+    if (!url) return;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Photo download failed");
+    const blob = await response.blob();
+    const extension = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : blob.type.includes("heic") ? "heic" : "jpg";
+    const file = new File([blob], `${detail.event.slug}-${photo.id}.${extension}`, { type: blob.type || photo.content_type });
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: detail.event.name });
+      return;
+    }
+    const href = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.download = file.name;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+  }
+
   async function moderate(photoID: string, status: PhotoRecord["status"]) {
     await adminModeratePhoto(detail.event.id, photoID, status);
     await onChange();
@@ -280,6 +300,7 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, onToast, onChange 
                     Uploaded by {photo.guest_name?.trim() || (photo.guest_id ? guestNames.get(photo.guest_id) : "") || "Guest"}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
+                    <IconButton label="Save photo" onClick={() => void savePhoto(photo)}><Download className="h-5 w-5" /></IconButton>
                     {photo.status === "pending" ? (
                       <IconButton label="Approve" onClick={() => moderate(photo.id, "approved")}><Check className="h-5 w-5" /></IconButton>
                     ) : null}

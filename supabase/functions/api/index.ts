@@ -192,12 +192,12 @@ async function eventDetail(client: SupabaseClient, id: string) {
   if (error) throw error;
   const token = await ensureEventToken(client, event);
   delete event.access_token_version;
-  const dashboardPhotos = [...(photos || []), ...mapEventMedia(media || [])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  const dashboardPhotos: any[] = [...((photos || []) as any[]), ...mapEventMedia((media || []) as any[])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   return {
     event,
     guest_url: guestURL(event.slug, token),
     guests: guests || [],
-    photos: await signedPhotos(client, dashboardPhotos),
+    photos: await signedPhotos(client, await withGuestNames(client, dashboardPhotos)),
     stats: { events: 1, open_events: event.status === "open" ? 1 : 0, upcoming_events: 0, guests: stats.guest_count, photos: stats.photo_count, pending_photos: stats.pending_photos, storage_bytes: stats.storage_bytes }
   };
 }
@@ -205,11 +205,15 @@ async function eventDetail(client: SupabaseClient, id: string) {
 async function guestRoute(req: Request, parts: string[], client: SupabaseClient) {
   const slug = parts[0]; const action = parts[1]; const body = await bodyJSON(req); const event = await validEvent(client, slug, String(body.access_token || bearer(req) || ""));
   if (event.status !== "open") throw new HTTPError(403,"Event is not open","event_locked");
-  const guest = await findOrCreateGuest(client,event,req,String(body.display_name||""),action === "join");
-  if (guest.status === "blocked") throw new HTTPError(403,"Guest is blocked","guest_blocked");
-  if (action === "join" && req.method === "POST") return json({event,remaining_shots:Math.max(0,event.max_photos_per_guest-guest.upload_count),gallery_available:galleryAvailable(event)});
+  const displayName = String(body.display_name || "").trim();
+  const isPresign = action === "uploads" && parts[2] === "presign" && req.method === "POST";
+  const guest = await findOrCreateGuest(client,event,req,displayName,isPresign);
+  if (guest?.status === "blocked") throw new HTTPError(403,"Guest is blocked","guest_blocked");
+  if (action === "join" && req.method === "POST") return json({event,guest_name:guest?.display_name || "",remaining_shots:Math.max(0,event.max_photos_per_guest-(guest?.upload_count || 0)),gallery_available:galleryAvailable(event)});
+  if (!guest) throw new HTTPError(400,"Guest name is required","guest_name_required");
   if (action === "uploads" && parts[2] === "presign" && req.method === "POST") {
-    if (!allowedTypes.has(body.content_type) || body.size_bytes <= 0 || body.size_bytes > 10485760) throw new HTTPError(400,"Invalid upload","validation_error");
+    if (!displayName) throw new HTTPError(400,"Guest name is required","guest_name_required");
+    if (!allowedTypes.has(body.content_type) || body.size_bytes <= 0 || body.size_bytes > 104857600) throw new HTTPError(400,"Invalid upload","validation_error");
     if (guest.upload_count >= event.max_photos_per_guest) throw new HTTPError(409,"Photo limit reached","upload_limit");
     const photoID=id26(), ext=extension(body.content_type), objectKey=`events/${event.id}/pending/${photoID}.${ext}`, uploadToken=randomToken();
     const {data,error}=await client.storage.from(bucket).createSignedUploadUrl(objectKey); if(error)throw error;
@@ -219,11 +223,12 @@ async function guestRoute(req: Request, parts: string[], client: SupabaseClient)
   if (action === "photos" && req.method === "POST") {
     const cfg=await config(client); const {data:intent}=await client.from("upload_intents").select("*").eq("photo_id",body.photo_id).eq("guest_id",guest.id).eq("used",false).gt("expires_at",new Date().toISOString()).maybeSingle();
     if(!intent||!safeEqual(intent.token_hash,await tokenHash(String(body.upload_token||""),cfg.token_pepper)))throw new HTTPError(403,"Invalid upload token","forbidden");
+    if (guest.upload_count >= event.max_photos_per_guest) throw new HTTPError(409,"Photo limit reached","upload_limit");
     const status=event.auto_approve_photos?"approved":"pending"; const now=new Date().toISOString();
     const width_px=positiveInt(body.width_px),height_px=positiveInt(body.height_px);
     const {data:photo,error}=await client.from("photos").insert({id:intent.photo_id,event_id:event.id,guest_id:guest.id,object_key:intent.object_key,content_type:intent.content_type,size_bytes:intent.size_bytes,message:String(body.message||"").slice(0,500),status,is_developed:event.mode!=="disposable_camera",width_px,height_px,created_at:now,updated_at:now}).select(photoColumns()).single(); if(error)throw error;
     await Promise.all([client.from("upload_intents").update({used:true}).eq("photo_id",intent.photo_id),client.from("guests").update({upload_count:guest.upload_count+1,last_seen_at:now}).eq("id",guest.id)]);
-    return json({photo,remaining_shots:Math.max(0,event.max_photos_per_guest-guest.upload_count-1)},201);
+    return json({photo:{...(photo as any),guest_name:guest.display_name},remaining_shots:Math.max(0,event.max_photos_per_guest-guest.upload_count-1)},201);
   }
   throw new HTTPError(404,"Not found","not_found");
 }
@@ -245,20 +250,21 @@ async function galleryRoute(req: Request, slug: string, client: SupabaseClient) 
     mediaQuery
   ]);
   if (error || mediaError) throw error || mediaError;
-  const galleryPhotos = [...(photos || []), ...mapEventMedia(media || [])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  const galleryPhotos: any[] = [...((photos || []) as any[]), ...mapEventMedia((media || []) as any[])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   const pagePhotos = galleryPhotos.slice(0, limit);
   const lastPhoto = pagePhotos.at(-1);
-  return json({ event, photos: await signedPhotos(client, pagePhotos), next_cursor: galleryPhotos.length > limit && lastPhoto ? lastPhoto.created_at : null });
+  return json({ event, photos: await signedPhotos(client, await withGuestNames(client, pagePhotos)), next_cursor: galleryPhotos.length > limit && lastPhoto ? lastPhoto.created_at : null });
 }
 
 async function validEvent(client: SupabaseClient, slug: string, token: string) { const {data,error}=await client.from("events").select(`${eventColumns},access_token_hash`).eq("slug",slug).neq("status","deleted").single(); if(error||!data)throw new HTTPError(404,"Event not found","not_found"); const cfg=await config(client); if(!token||!safeEqual(data.access_token_hash,await tokenHash(token,cfg.token_pepper)))throw new HTTPError(401,"Unauthorized","unauthorized"); delete data.access_token_hash; return data; }
-async function findOrCreateGuest(client: SupabaseClient,event:any,req:Request,name:string,create:boolean){const raw=req.headers.get("x-guest-token")||bearer(req);if(!raw)throw new HTTPError(401,"Guest token required","unauthorized");const cfg=await config(client),hash=await tokenHash(raw,cfg.token_pepper);let {data}=await client.from("guests").select("*").eq("event_id",event.id).eq("device_token_hash",hash).maybeSingle();if(data){if(name){const out=await client.from("guests").update({display_name:name.slice(0,100),last_seen_at:new Date().toISOString()}).eq("id",data.id).select("*").single();data=out.data;}return data;}if(!create)throw new HTTPError(401,"Join event first","unauthorized");if(await count(client,"guests",q=>q.eq("event_id",event.id))>=event.max_guests)throw new HTTPError(409,"Guest limit reached","guest_limit");const now=new Date().toISOString(),row={id:id26(),event_id:event.id,device_token_hash:hash,display_name:name.slice(0,100),upload_count:0,message_count:0,created_at:now,last_seen_at:now,status:"active"};const out=await client.from("guests").insert(row).select("*").single();if(out.error)throw out.error;return out.data;}
+async function findOrCreateGuest(client: SupabaseClient,event:any,req:Request,name:string,create:boolean){const raw=req.headers.get("x-guest-token")||bearer(req);if(!raw)throw new HTTPError(401,"Guest token required","unauthorized");const cfg=await config(client),hash=await tokenHash(raw,cfg.token_pepper);let {data}=await client.from("guests").select("*").eq("event_id",event.id).eq("device_token_hash",hash).maybeSingle();if(data){if(name&&name!==data.display_name){const out=await client.from("guests").update({display_name:name.slice(0,100),last_seen_at:new Date().toISOString()}).eq("id",data.id).select("*").single();data=out.data;}return data;}if(!create)return null;if(!name)throw new HTTPError(400,"Guest name is required","guest_name_required");if(await count(client,"guests",q=>q.eq("event_id",event.id))>=event.max_guests)throw new HTTPError(409,"Guest limit reached","guest_limit");const now=new Date().toISOString(),row={id:id26(),event_id:event.id,device_token_hash:hash,display_name:name.slice(0,100),upload_count:0,message_count:0,created_at:now,last_seen_at:now,status:"active"};const out=await client.from("guests").insert(row).select("*").single();if(out.error)throw out.error;return out.data;}
 function photoColumns(){return "id,event_id,guest_id,object_key,content_type,size_bytes,message,status,is_developed,width_px,height_px,created_at,updated_at";}
 function mediaColumns(){return "id,event_id,guest_upload_session_id,guest_name,file_name,file_type,file_size,storage_path,media_type,upload_status,approval_status,created_at";}
 function mapEventMedia(media:any[]){return media.map((m)=>({id:m.id,event_id:m.event_id,guest_id:m.guest_upload_session_id,guest_name:m.guest_name,object_key:m.storage_path,content_type:m.file_type,size_bytes:m.file_size,message:`Uploaded by ${m.guest_name}`,status:m.approval_status === "approved" ? "approved" : m.approval_status === "pending" ? "pending" : "hidden",is_developed:true,created_at:m.created_at,updated_at:m.created_at,media_type:m.media_type,file_name:m.file_name}));}
+async function withGuestNames(client:SupabaseClient,photos:any[]){const ids=[...new Set(photos.filter(p=>!p.guest_name&&p.guest_id).map(p=>p.guest_id))];if(!ids.length)return photos;const {data,error}=await client.from("guests").select("id,display_name").in("id",ids);if(error)throw error;const names=new Map((data||[]).map(g=>[g.id,g.display_name]));return photos.map(p=>p.guest_name? p : {...p,guest_name:names.get(p.guest_id)||""});}
 async function signedPhotos(client:SupabaseClient,photos:any[]){return Promise.all(photos.map(async p=>{const original=await client.storage.from(bucket).createSignedUrl(p.object_key,3600);if(original.error)throw original.error;let thumbnail=original,preview=original;if(canTransformImage(p.content_type)){const [thumb,large]=await Promise.all([client.storage.from(bucket).createSignedUrl(p.object_key,2592000,{transform:{width:320,quality:45,resize:"contain"}}),client.storage.from(bucket).createSignedUrl(p.object_key,3600,{transform:{width:1600,quality:82,resize:"contain"}})]);if(!thumb.error)thumbnail=thumb;if(!large.error)preview=large;}return{...p,public_url:original.data?.signedUrl,thumbnail_url:thumbnail.data?.signedUrl,preview_url:preview.data?.signedUrl};}));}
 function canTransformImage(type:string){return ["image/jpeg","image/png","image/webp"].includes(type);}
-async function photoArchive(client:SupabaseClient,eventID:string){const {data}=await client.from("photos").select("id,object_key,content_type").eq("event_id",eventID).neq("status","deleted").limit(1000);const zip=new JSZip();for(const p of data||[]){const file=await client.storage.from(bucket).download(p.object_key);if(file.data)zip.file(`${p.id}.${extension(p.content_type)}`,await file.data.arrayBuffer());}const bytes=await zip.generateAsync({type:"uint8array"});return new Response(bytes,{headers:{...cors,"Content-Type":"application/zip","Content-Disposition":'attachment; filename="event-photos.zip"'}});}
+async function photoArchive(client:SupabaseClient,eventID:string){const {data}=await client.from("photos").select("id,object_key,content_type").eq("event_id",eventID).neq("status","deleted").limit(1000);const zip=new JSZip();for(const p of data||[]){const file=await client.storage.from(bucket).download(p.object_key);if(file.data)zip.file(`${p.id}.${extension(p.content_type)}`,await file.data.arrayBuffer());}const bytes=await zip.generateAsync({type:"uint8array"});return new Response(bytes.buffer as ArrayBuffer,{headers:{...cors,"Content-Type":"application/zip","Content-Disposition":'attachment; filename="event-photos.zip"'}});}
 
 function galleryAvailable(e:any){return e.allow_immediate_gallery||e.mode==="live_gallery"||Date.now()>=new Date(e.reveal_at).getTime();}
 async function ensureEventToken(client:SupabaseClient,event:any){const cfg=await config(client);let version=String(event.access_token_version||"");if(!version.startsWith("v2:")){version=`v2:${randomToken()}`;const token=await deriveAccessToken(event.id,version,cfg.token_pepper);const hash=await tokenHash(token,cfg.token_pepper);const {error}=await client.from("events").update({access_token_version:version,access_token_hash:hash,guest_upload_token_hash:hash,updated_at:new Date().toISOString()}).eq("id",event.id);if(error)throw error;event.access_token_version=version;return token;}return deriveAccessToken(event.id,version,cfg.token_pepper);}
