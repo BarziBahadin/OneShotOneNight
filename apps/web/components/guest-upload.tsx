@@ -119,7 +119,6 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
     <main className="reveal-page">
       <img src="/pics/golden-event.jpg" alt="A candlelit dinner table at sunset" className="reveal-bg" />
       <div className="reveal-vignette" />
-      {uploading ? <UploadLoadingScreen progress={progress} file={currentUpload} batchDone={batchDone} batchTotal={batchTotal} /> : null}
 
       <section className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[520px] flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
         <header className="flex items-center justify-end">
@@ -153,11 +152,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
 
           <GuestPhotoUploader disabled={!canUpload} maxFiles={Math.max(shotsRemaining, 1)} onUpload={uploadFiles} />
 
-          {uploading ? (
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/14" aria-label={`${progress}% uploaded`}>
-              <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300" style={{ width: `${progress}%` }} />
-            </div>
-          ) : null}
+          {uploading ? <UploadProgressStatus progress={progress} file={currentUpload} batchDone={batchDone} batchTotal={batchTotal} /> : null}
 
           <div className="grid grid-cols-2 gap-3">
             <UploadMetric icon={<Images className="h-5 w-5" />} label="Uploaded" value={`${uploadedCount}`} />
@@ -183,24 +178,36 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
   );
 }
 
-function UploadLoadingScreen({ progress, file, batchDone, batchTotal }: { progress: number; file: File | null; batchDone: number; batchTotal: number }) {
+function UploadProgressStatus({ progress, file, batchDone, batchTotal }: { progress: number; file: File | null; batchDone: number; batchTotal: number }) {
+  const currentFileNumber = Math.min(batchDone + 1, batchTotal);
+
   return (
-    <div className="fixed inset-0 z-30 grid place-items-end bg-black/50 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-white backdrop-blur-sm" role="status" aria-live="polite">
-      <div className="w-full max-w-[520px] rounded-2xl border border-white/10 bg-[#0b0a09]/95 p-4 shadow-[0_-18px_50px_rgb(0_0_0/0.45)]">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-            <UploadCloud className="h-5 w-5 animate-pulse" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Uploading photos</p>
-            <p className="truncate text-xs text-white/52">{file ? `${file.name} · ${Math.min(batchDone + 1, batchTotal)} of ${batchTotal}` : (batchTotal ? `${batchDone} of ${batchTotal} complete` : "Preparing upload")}</p>
+    <div className="rounded-2xl border border-blue-400/20 bg-blue-500/[0.08] p-4" role="status" aria-live="polite">
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-300/20 bg-blue-500/15 text-blue-100">
+          <UploadCloud className="h-5 w-5 animate-pulse" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-white">Uploading in the background</p>
+            <p className="shrink-0 text-sm font-semibold tabular-nums text-white/72">{progress}%</p>
           </div>
-          <p className="text-sm font-semibold tabular-nums text-white/70">{progress}%</p>
-        </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/14" aria-label={`${progress}% uploaded`}>
-          <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300" style={{ width: `${Math.max(8, progress)}%` }} />
+          <p className="mt-0.5 truncate text-xs text-white/52">
+            {file ? `${file.name} · ${currentFileNumber} of ${batchTotal}` : (batchTotal ? `${batchDone} of ${batchTotal} complete` : "Preparing upload")}
+          </p>
         </div>
       </div>
+      <div
+        className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/12"
+        role="progressbar"
+        aria-label="Photo upload progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+      >
+        <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300" style={{ width: `${progress}%` }} />
+      </div>
+      <p className="mt-2 text-xs leading-5 text-white/46">You can keep using this page while your photos upload.</p>
     </div>
   );
 }
