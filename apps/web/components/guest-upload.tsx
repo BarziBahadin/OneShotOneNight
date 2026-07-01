@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Images, LockKeyhole, ShieldCheck, Sparkles, UploadCloud, X } from "lucide-react";
-import { FileUpload } from "@/components/application/file-upload/file-upload-base";
+import GuestPhotoUploader from "@/components/comp-547";
 import { EventRecord, joinGuest, rememberGuestAccessToken, storedGuestAccessToken, uploadGuestPhotos } from "@/lib/api";
 
 type UploadResult = {
@@ -151,17 +151,7 @@ export function GuestUpload({ slug, accessToken }: { slug: string; accessToken: 
             <p className="text-xs leading-5 text-white/46">This helps the host know who to thank for each photo.</p>
           </div>
 
-          <FileUpload.DropZone
-            isDisabled={!canUpload}
-            allowsMultiple
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-            maxSize={100 * 1024 * 1024}
-            hint="JPEG, PNG, WebP, HEIC, or HEIF up to 100 MB"
-            onDropFiles={(files) => void uploadFiles(Array.from(files))}
-            onDropUnacceptedFiles={() => setStatus("Choose a JPEG, PNG, WebP, HEIC, or HEIF photo.")}
-            onSizeLimitExceed={() => setStatus("Each photo must be 100 MB or smaller.")}
-            className="min-h-48 rounded-[1.5rem] border border-dashed border-white/18 bg-white/[0.06] px-5 py-8 text-center text-white ring-0 disabled:pointer-events-none"
-          />
+          <GuestPhotoUploader disabled={!canUpload} maxFiles={Math.max(shotsRemaining, 1)} onUpload={uploadFiles} />
 
           {uploading ? (
             <div className="h-1.5 overflow-hidden rounded-full bg-white/14" aria-label={`${progress}% uploaded`}>

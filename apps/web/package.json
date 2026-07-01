@@ -14,15 +14,19 @@
   "dependencies": {
     "@untitledui/file-icons": "^0.0.9",
     "@untitledui/icons": "^0.0.22",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "motion": "^12.42.0",
     "qrcode": "^1.5.4",
+    "radix-ui": "^1.6.1",
     "react": "^19.1.0",
     "react-aria": "^3.50.0",
     "react-aria-components": "^1.19.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "tus-js-client": "4.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

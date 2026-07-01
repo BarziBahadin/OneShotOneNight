@@ -4,7 +4,7 @@ import JSZip from "npm:jszip@3.10.1";
 const bucket = "oneshotonenight";
 const eventColumns = "id,slug,name,description,host_message,mode,status,starts_at,ends_at,reveal_at,max_guests,max_photos_per_guest,allow_gallery_uploads,prefer_camera_capture,allow_immediate_gallery,auto_approve_photos,offline_upload_grace_hours,created_at,updated_at";
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "video/mp4", "video/quicktime", "video/webm"]);
-const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, idempotency-key, x-guest-token", "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS" };
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, idempotency-key, x-guest-token, tus-resumable, upload-length, upload-offset, upload-metadata, upload-defer-length, upload-checksum", "Access-Control-Allow-Methods": "GET, HEAD, POST, PATCH, DELETE, OPTIONS", "Access-Control-Expose-Headers": "location, tus-resumable, upload-offset, upload-length, upload-expires" };
 
 class HTTPError extends Error { constructor(public status: number, message: string, public code = "request_failed") { super(message); } }
 
@@ -203,7 +203,7 @@ async function eventDetail(client: SupabaseClient, id: string) {
 }
 
 async function guestRoute(req: Request, parts: string[], client: SupabaseClient) {
-  const slug = parts[0]; const action = parts[1]; const body = await bodyJSON(req); const event = await validEvent(client, slug, String(body.access_token || bearer(req) || ""));
+  const slug = parts[0]; const action = parts[1]; const isResumable = action === "uploads" && parts[2] === "resumable"; const body = isResumable ? {} : await bodyJSON(req); const event = await validEvent(client, slug, String(body.access_token || bearer(req) || ""));
   if (event.status !== "open") throw new HTTPError(403,"Event is not open","event_locked");
   const displayName = String(body.display_name || "").trim();
   const isPresign = action === "uploads" && parts[2] === "presign" && req.method === "POST";
@@ -211,13 +211,14 @@ async function guestRoute(req: Request, parts: string[], client: SupabaseClient)
   if (guest?.status === "blocked") throw new HTTPError(403,"Guest is blocked","guest_blocked");
   if (action === "join" && req.method === "POST") return json({event,guest_name:guest?.display_name || "",remaining_shots:Math.max(0,event.max_photos_per_guest-(guest?.upload_count || 0)),gallery_available:galleryAvailable(event)});
   if (!guest) throw new HTTPError(400,"Guest name is required","guest_name_required");
+  if (isResumable && parts[3]) return resumableUploadProxy(req, client, guest.id, parts[3]);
   if (action === "uploads" && parts[2] === "presign" && req.method === "POST") {
     if (!displayName) throw new HTTPError(400,"Guest name is required","guest_name_required");
     if (!allowedTypes.has(body.content_type) || body.size_bytes <= 0 || body.size_bytes > 104857600) throw new HTTPError(400,"Invalid upload","validation_error");
     if (guest.upload_count >= event.max_photos_per_guest) throw new HTTPError(409,"Photo limit reached","upload_limit");
     const photoID=id26(), ext=extension(body.content_type), objectKey=`events/${event.id}/pending/${photoID}.${ext}`, uploadToken=randomToken();
     const {data,error}=await client.storage.from(bucket).createSignedUploadUrl(objectKey); if(error)throw error;
-    const cfg=await config(client); await client.from("upload_intents").insert({photo_id:photoID,event_id:event.id,guest_id:guest.id,object_key:objectKey,content_type:body.content_type,size_bytes:body.size_bytes,token_hash:await tokenHash(uploadToken,cfg.token_pepper),expires_at:new Date(Date.now()+15*60_000).toISOString()});
+    const cfg=await config(client); await client.from("upload_intents").insert({photo_id:photoID,event_id:event.id,guest_id:guest.id,object_key:objectKey,content_type:body.content_type,size_bytes:body.size_bytes,token_hash:await tokenHash(uploadToken,cfg.token_pepper),expires_at:new Date(Date.now()+24*60*60_000).toISOString()});
     return json({photo_id:photoID,object_key:objectKey,upload_url:data.signedUrl,upload_headers:{"Content-Type":body.content_type},upload_token:uploadToken,remaining_shots:event.max_photos_per_guest-guest.upload_count});
   }
   if (action === "photos" && req.method === "POST") {
@@ -232,6 +233,25 @@ async function guestRoute(req: Request, parts: string[], client: SupabaseClient)
   }
   throw new HTTPError(404,"Not found","not_found");
 }
+
+async function resumableUploadProxy(req:Request,client:SupabaseClient,guestID:string,photoID:string){
+  const {data:intent,error}=await client.from("upload_intents").select("photo_id,guest_id,object_key,content_type,size_bytes,resumable_url,expires_at,used").eq("photo_id",photoID).eq("guest_id",guestID).eq("used",false).gt("expires_at",new Date().toISOString()).maybeSingle();
+  if(error)throw error;if(!intent)throw new HTTPError(404,"Upload session not found","upload_not_found");
+  const creating=req.method==="POST";if(!creating&&!intent.resumable_url)throw new HTTPError(409,"Upload has not started","upload_not_started");
+  const upstream=creating?`${storageBaseURL()}/storage/v1/upload/resumable`:String(intent.resumable_url);
+  const allowedOrigin=new URL(storageBaseURL()).origin;const parsedUpstream=new URL(upstream);
+  if(parsedUpstream.origin!==allowedOrigin||!parsedUpstream.pathname.startsWith("/storage/v1/upload/resumable"))throw new HTTPError(400,"Invalid upload session","validation_error");
+  const key=adminKey();const headers=new Headers();headers.set("Authorization",`Bearer ${key}`);headers.set("apikey",key);headers.set("Tus-Resumable",req.headers.get("Tus-Resumable")||"1.0.0");
+  for(const name of ["Upload-Length","Upload-Offset","Upload-Defer-Length","Upload-Checksum","Content-Type"]){const value=req.headers.get(name);if(value)headers.set(name,value);}
+  if(creating){headers.set("Upload-Length",String(intent.size_bytes));headers.set("Upload-Metadata",tusMetadata({bucketName:bucket,objectName:intent.object_key,contentType:intent.content_type,cacheControl:"3600"}));}
+  const response=await fetch(upstream,{method:req.method,headers,body:["POST","PATCH"].includes(req.method)?req.body:undefined,redirect:"manual"});
+  if(creating&&response.ok){const location=response.headers.get("location");if(!location)throw new HTTPError(502,"Storage did not create an upload session","storage_error");const absolute=new URL(location,upstream).toString();const {error:updateError}=await client.from("upload_intents").update({resumable_url:absolute}).eq("photo_id",photoID).eq("guest_id",guestID);if(updateError)throw updateError;}
+  const outHeaders=new Headers(cors);for(const name of ["Tus-Resumable","Upload-Offset","Upload-Length","Upload-Expires"]){const value=response.headers.get(name);if(value)outHeaders.set(name,value);}if(creating&&response.ok)outHeaders.set("Location",new URL(req.url).toString());
+  return new Response(response.body,{status:response.status,headers:outHeaders});
+}
+
+function storageBaseURL(){const url=new URL(Deno.env.get("SUPABASE_URL")!);if(url.hostname.endsWith(".supabase.co"))url.hostname=url.hostname.replace(/\.supabase\.co$/,".storage.supabase.co");return url.origin;}
+function tusMetadata(values:Record<string,string>){return Object.entries(values).map(([key,value])=>`${key} ${btoa(value)}`).join(",");}
 
 async function galleryRoute(req: Request, slug: string, client: SupabaseClient) {
   const token = bearer(req);

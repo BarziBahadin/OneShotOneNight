@@ -1,3 +1,5 @@
+import * as tus from "tus-js-client";
+
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
 const defaultSupabaseApiBase = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
 const publicWebBase = "https://one-shot-one-night.vercel.app";
@@ -287,7 +289,7 @@ export function joinGuest(slug: string, accessToken: string, displayName: string
 
 export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string, displayName = "") {
   const prepared = await prepareGuestPhoto(slug, accessToken, file, displayName);
-  await putGuestPhoto(prepared, file);
+  await putGuestPhoto(prepared, file, slug, accessToken);
   return completeGuestPhoto(slug, accessToken, prepared, message, displayName);
 }
 
@@ -322,23 +324,33 @@ async function prepareGuestPhoto(slug: string, accessToken: string, file: File, 
   return { ...presign, dimensions };
 }
 
-async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File, onProgress?: (loaded: number) => void) {
+async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File, slug: string, accessToken: string, onProgress?: (loaded: number) => void) {
   await new Promise<void>((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("PUT", prepared.upload_url);
-    Object.entries(prepared.upload_headers).forEach(([name, value]) => request.setRequestHeader(name, value));
-    request.upload.onprogress = (event) => onProgress?.(event.lengthComputable ? event.loaded : 0);
-    request.onload = () => {
-      if (request.status >= 200 && request.status < 300) {
+    const upload = new tus.Upload(file, {
+      endpoint: `${apiBaseURL()}/api/v1/guest/${encodeURIComponent(slug)}/uploads/resumable/${prepared.photo_id}`,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "X-Guest-Token": guestDeviceToken()
+      },
+      chunkSize: 6 * 1024 * 1024,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        filename: file.name,
+        filetype: file.type || "application/octet-stream"
+      },
+      onProgress: (bytesUploaded) => onProgress?.(bytesUploaded),
+      onError: (error) => reject(new APIError(error.message || "Upload failed", 0, "upload_failed")),
+      onSuccess: () => {
         onProgress?.(file.size);
         resolve();
-      } else {
-        reject(new APIError("Upload failed", request.status, "upload_failed"));
       }
-    };
-    request.onerror = () => reject(new APIError("Upload failed", 0, "upload_failed"));
-    request.onabort = () => reject(new APIError("Upload cancelled", 0, "upload_cancelled"));
-    request.send(file);
+    });
+    void upload.findPreviousUploads().then((previousUploads) => {
+      if (previousUploads.length) upload.resumeFromPreviousUpload(previousUploads[0]);
+      upload.start();
+    }).catch(reject);
   });
 }
 
@@ -380,7 +392,7 @@ export async function uploadGuestPhotos(
     for (let index = workerIndex; index < prepared.length; index += 3) {
       const item = prepared[index];
       try {
-        await putGuestPhoto(item.upload, item.file, (loaded) => {
+        await putGuestPhoto(item.upload, item.file, slug, accessToken, (loaded) => {
           loadedByFile.set(item.file, loaded);
           const totalLoaded = [...loadedByFile.values()].reduce((total, value) => total + value, 0);
           onProgress?.({ file: item.file, loaded: totalLoaded, total: totalBytes, percent: totalBytes ? Math.round((totalLoaded / totalBytes) * 100) : 0 });
