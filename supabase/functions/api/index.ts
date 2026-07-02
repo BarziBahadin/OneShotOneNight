@@ -256,6 +256,7 @@ function tusMetadata(values:Record<string,string>){return Object.entries(values)
 async function galleryRoute(req: Request, slug: string, client: SupabaseClient) {
   const token = bearer(req);
   const event = await validEvent(client, slug, token);
+  if (!galleryAvailable(event)) throw new HTTPError(403, "Gallery is locked until reveal", "gallery_locked");
   const url = new URL(req.url);
   const limit = Math.min(Math.max(positiveInt(url.searchParams.get("limit")) || 24, 1), 60);
   const before = validDateCursor(url.searchParams.get("before"));

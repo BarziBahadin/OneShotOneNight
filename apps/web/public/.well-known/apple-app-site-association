@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["7B5U63YN3A.com.oneshotonenight.app"],
+        "components": [
+          { "/": "/guest/*", "comment": "Guest invitations" },
+          { "/": "/guest-upload/*", "comment": "Guest upload invitations" }
+        ]
+      }
+    ]
+  }
+}

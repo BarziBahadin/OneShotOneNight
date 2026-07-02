@@ -13,6 +13,8 @@ settings:
     MARKETING_VERSION: 1.0
     GENERATE_INFOPLIST_FILE: false
     ENABLE_USER_SCRIPT_SANDBOXING: true
+    API_BASE_URL: https://huakafctiajezinrzfle.supabase.co/functions/v1/api
+    PUBLIC_WEB_URL: https://one-shot-one-night.vercel.app
 targets:
   OneShotOneNight:
     type: application
@@ -29,11 +31,45 @@ targets:
         INFOPLIST_FILE: App/Info.plist
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: App/OneShotOneNight.entitlements
+        SUPPORTS_MACCATALYST: false
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: App/OneShotOneNight.Debug.entitlements
+  OneShotOneNightTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: OneShotOneNight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app.tests
+        GENERATE_INFOPLIST_FILE: true
+  OneShotOneNightUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: OneShotOneNight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app.uitests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_TARGET_NAME: OneShotOneNight
 schemes:
   OneShotOneNight:
     build:
       targets:
         OneShotOneNight: all
+        OneShotOneNightTests: [test]
+        OneShotOneNightUITests: [test]
+    test:
+      targets:
+        - OneShotOneNightTests
+        - OneShotOneNightUITests
     run:
       config: Debug
     archive:

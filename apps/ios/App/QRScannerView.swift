@@ -2,8 +2,8 @@
 import SwiftUI
 import UIKit
 
-struct QRScannerView: View {
-    let onFound: (URL) -> Void
+struct QRCodeScannerView: View {
+    let onFound: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var scannerError: String?
 
@@ -12,7 +12,7 @@ struct QRScannerView: View {
             #if targetEnvironment(simulator)
             Color.black.ignoresSafeArea()
             #else
-            QRScannerCamera(onFound: onFound) { message in
+            QRScannerCamera(onFound: { url in onFound(url.absoluteString) }) { message in
                 scannerError = message
             }
             .ignoresSafeArea()
@@ -22,35 +22,58 @@ struct QRScannerView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            VStack {
+            VStack(spacing: 0) {
                 HStack {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark").font(.headline).frame(width: 48, height: 48)
+                        Image(systemName: "chevron.left")
+                            .font(.headline)
+                            .frame(width: 58, height: 58)
                     }
-                    .background(.black.opacity(0.52), in: Circle())
+                    .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Theme.surfaceStroke))
                     Spacer()
                 }
+
                 Spacer()
+
+                RoundedRectangle(cornerRadius: 42, style: .continuous)
+                    .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .frame(width: 274, height: 274)
+                    .overlay {
+                        Image(systemName: "qrcode.viewfinder")
+                            .font(.system(size: 46, weight: .light))
+                            .foregroundStyle(.white.opacity(0.78))
+                    }
+
+                Spacer()
+
                 VStack(spacing: 8) {
-                    Image(systemName: scannerError == nil ? "qrcode.viewfinder" : "camera.fill")
-                        .font(.system(size: 34, weight: .light))
-                    Text(scannerError == nil ? "Point at the event QR code" : "Scanner unavailable")
-                        .font(.headline)
-                    Text(scannerError ?? "The invitation opens automatically.")
+                    Text(scannerError == nil ? "Scan invitation QR code" : "Scanner unavailable")
+                        .font(.system(size: 28, weight: .regular, design: .serif))
+                    Text(scannerError ?? "Center the host’s invitation code inside the frame. The event opens automatically.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                     if scannerError != nil {
-                        Button("Paste the event link instead") { dismiss() }
-                            .font(.footnote.weight(.semibold))
-                            .padding(.top, 6)
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 22)
+                        .frame(height: 50)
+                        .background(.white, in: Capsule())
+                        .padding(.top, 8)
                     }
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .background(Theme.surface.opacity(0.94), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(Theme.surfaceStroke))
             }
-            .padding(18)
+            .padding(24)
         }
         .preferredColorScheme(.dark)
         .onAppear {

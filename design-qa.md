@@ -26,3 +26,31 @@
 - None identified without rendered evidence.
 
 final result: blocked
+
+## Responsive Guest Landing Regression
+
+- Reference: user-provided iPhone screenshot showing the horizontally overflowing guest landing screen.
+- Implementation screenshot: `/tmp/landing-responsive.png`, iPhone 17 simulator.
+- Viewport: compact portrait iPhone.
+- Result: the background fills the display; all content is centered within 32-point side margins; the title wraps to two lines; metadata, form, primary action, and gallery action remain within the viewport.
+- P0/P1/P2 findings: none remaining for this regression.
+
+final result: passed
+
+## Camera Controls Correction
+
+- Build verification: passed after the counter, centering, gallery presentation, and full-screen background changes.
+- Structural verification: shutter and zoom are independently centered; the counter has a single-line 116-point frame; the camera gallery is presented from the camera hierarchy.
+- Visual comparison: blocked by the existing CoreSimulator launch-screen issue.
+
+final result: blocked
+# Camera Design QA
+
+- Reference: user-provided iPhone camera screenshot, targeting a 430-point-wide viewport.
+- Implementation: `PartyCameraView` in `apps/ios/Shared/CameraCaptureView.swift`.
+- Build verification: passed (`xcodebuild`, Debug, iPhone Simulator SDK, code signing disabled).
+- Layout review: preview uses 15-point side margins, a 3:4 camera frame, 42-point corners, a safe-area-relative header, and two distinct bottom control rows matching the reference hierarchy.
+- Interaction review: close, invitation QR, flash, 0.5×/1× zoom, camera flip, shutter, shot counter, and gallery remain wired.
+- Visual capture: blocked because CoreSimulator remains on the iOS launch screen on two simulator devices and does not start the installed app process.
+
+final result: blocked

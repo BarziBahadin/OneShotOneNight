@@ -8,38 +8,72 @@
 
 /* Begin PBXBuildFile section */
 		07709126DB8030CE6C206B67 /* PhotoReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9133349A0F8E50AF17DD7B6C /* PhotoReviewView.swift */; };
+		1138EF043A3DC849C4427F70 /* OneShotOneNightUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F79232CB05D94F8D207FFD /* OneShotOneNightUITests.swift */; };
 		1BD84DEAB95184971C5B6AC3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2FA294AE05E798CA6073217B /* Assets.xcassets */; };
 		27387A9F6DD77CA207326B1C /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1CA8DFAD38E8B577CDF61E /* Models.swift */; };
 		3342B606863F89D8D3ED16D9 /* GuestEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380C0FEF1679FD07911ED56D /* GuestEventView.swift */; };
 		4CFF0EDD9FFF287B188126DF /* golden-event.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B796346AB1166E303A7DA86F /* golden-event.jpg */; };
+		572464898CC0CC9AF159FD8F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1821E05F79C70E651F508DB3 /* PrivacyInfo.xcprivacy */; };
 		60B1D91BA8A314CDD391490F /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A96AEE272F289B776E0910F /* AppModel.swift */; };
+		6167E159B27ABE41645BB60B /* SecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7BC62E2E53A6D98AF06D50 /* SecureStore.swift */; };
+		6A35480E05419FC8E324181E /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E17097738199308D06265494 /* Diagnostics.swift */; };
 		6F72881DAD20EC62E0BBB2D7 /* OneShotOneNightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8CB29D59AF91435707DAA6 /* OneShotOneNightApp.swift */; };
 		879372A35D7F0E880F8141D7 /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C57540E7C3D249A6C2DAA5 /* GalleryView.swift */; };
 		8EA34B76B24F62380B572734 /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D83DFA7C1DC5B6511005F3E /* CameraCaptureView.swift */; };
+		AABE6D2A72843A36F45C46BA /* OneShotOneNightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C90D9FD700F08894D53137F /* OneShotOneNightTests.swift */; };
 		B7CDE7D0267BE81DEB257E64 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A288CA93EC88BE93EDBE7C6E /* Theme.swift */; };
 		C894118C4F23C13AC3F3AD1E /* ScanLandingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A4EA4A51062A43F58E9BF2 /* ScanLandingView.swift */; };
+		D1052ACD41F20C69BF98A054 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DF23F8F9926B51DE699A2D3 /* AppConfiguration.swift */; };
+		DC1B1DF1EAE706DED1ED9F58 /* PendingUploadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993281870C87A8A1CB47F86B /* PendingUploadStore.swift */; };
 		EEF90C31BF49665FB34CA2C4 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D659BE37A7457458AEB495AA /* QRScannerView.swift */; };
 		F0FA58AB482873DF18156A29 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591ADDF53770B97985B6C163 /* RootView.swift */; };
 		F1770F87C699D71BAF21B0F6 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEE415B5EF4F76A3F9FEEC /* APIClient.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		406BE76155AA12E70F95F7EA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 824EE28447E2E75FE3DCE36E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EE7FBB9E8A4F4A5B9229C0D8;
+			remoteInfo = OneShotOneNight;
+		};
+		496691088A471A88C59B8E04 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 824EE28447E2E75FE3DCE36E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EE7FBB9E8A4F4A5B9229C0D8;
+			remoteInfo = OneShotOneNight;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		01C7BA0DC99E8A15A1E2D920 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		04DA0E1A481EB20996808A3B /* OneShotOneNightUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OneShotOneNightUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A96AEE272F289B776E0910F /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		0AA7A44B14D8541D7A34D55A /* OneShotOneNightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OneShotOneNightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1821E05F79C70E651F508DB3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		29EEE415B5EF4F76A3F9FEEC /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		2C90D9FD700F08894D53137F /* OneShotOneNightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneShotOneNightTests.swift; sourceTree = "<group>"; };
 		2FA294AE05E798CA6073217B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		380C0FEF1679FD07911ED56D /* GuestEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestEventView.swift; sourceTree = "<group>"; };
+		45F79232CB05D94F8D207FFD /* OneShotOneNightUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneShotOneNightUITests.swift; sourceTree = "<group>"; };
 		591ADDF53770B97985B6C163 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		5D83DFA7C1DC5B6511005F3E /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCaptureView.swift; sourceTree = "<group>"; };
+		6DF23F8F9926B51DE699A2D3 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
 		9133349A0F8E50AF17DD7B6C /* PhotoReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoReviewView.swift; sourceTree = "<group>"; };
 		92C57540E7C3D249A6C2DAA5 /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
 		93A4EA4A51062A43F58E9BF2 /* ScanLandingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanLandingView.swift; sourceTree = "<group>"; };
+		993281870C87A8A1CB47F86B /* PendingUploadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadStore.swift; sourceTree = "<group>"; };
 		A288CA93EC88BE93EDBE7C6E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		B796346AB1166E303A7DA86F /* golden-event.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "golden-event.jpg"; sourceTree = "<group>"; };
+		B9F056D5A889E3F606D9F056 /* OneShotOneNight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OneShotOneNight.entitlements; sourceTree = "<group>"; };
 		BE1CA8DFAD38E8B577CDF61E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		CA8CB29D59AF91435707DAA6 /* OneShotOneNightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneShotOneNightApp.swift; sourceTree = "<group>"; };
 		D659BE37A7457458AEB495AA /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		DA7BC62E2E53A6D98AF06D50 /* SecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureStore.swift; sourceTree = "<group>"; };
 		DD937A700BBBE05FD1DD8F13 /* OneShotOneNight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OneShotOneNight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E17097738199308D06265494 /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -55,16 +89,28 @@
 			isa = PBXGroup;
 			children = (
 				29EEE415B5EF4F76A3F9FEEC /* APIClient.swift */,
+				6DF23F8F9926B51DE699A2D3 /* AppConfiguration.swift */,
 				0A96AEE272F289B776E0910F /* AppModel.swift */,
 				5D83DFA7C1DC5B6511005F3E /* CameraCaptureView.swift */,
+				E17097738199308D06265494 /* Diagnostics.swift */,
 				92C57540E7C3D249A6C2DAA5 /* GalleryView.swift */,
 				380C0FEF1679FD07911ED56D /* GuestEventView.swift */,
 				BE1CA8DFAD38E8B577CDF61E /* Models.swift */,
+				993281870C87A8A1CB47F86B /* PendingUploadStore.swift */,
 				9133349A0F8E50AF17DD7B6C /* PhotoReviewView.swift */,
+				DA7BC62E2E53A6D98AF06D50 /* SecureStore.swift */,
 				A288CA93EC88BE93EDBE7C6E /* Theme.swift */,
 				31378C7C9CD9769D27F0920B /* Resources */,
 			);
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		759C6B632283D4165F680D61 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				2C90D9FD700F08894D53137F /* OneShotOneNightTests.swift */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		9341A90733DE2A01D7A265C3 = {
@@ -72,14 +118,26 @@
 			children = (
 				C8E1320629E2A22C9C4E46B3 /* App */,
 				6908C55C45124598871F8AC6 /* Shared */,
+				759C6B632283D4165F680D61 /* Tests */,
+				94FAFD6F8C1775773D5E407B /* UITests */,
 				C76F4F8A4840CB73277EE228 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		94FAFD6F8C1775773D5E407B /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				45F79232CB05D94F8D207FFD /* OneShotOneNightUITests.swift */,
+			);
+			path = UITests;
 			sourceTree = "<group>";
 		};
 		C76F4F8A4840CB73277EE228 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				DD937A700BBBE05FD1DD8F13 /* OneShotOneNight.app */,
+				0AA7A44B14D8541D7A34D55A /* OneShotOneNightTests.xctest */,
+				04DA0E1A481EB20996808A3B /* OneShotOneNightUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,7 +147,9 @@
 			children = (
 				2FA294AE05E798CA6073217B /* Assets.xcassets */,
 				01C7BA0DC99E8A15A1E2D920 /* Info.plist */,
+				B9F056D5A889E3F606D9F056 /* OneShotOneNight.entitlements */,
 				CA8CB29D59AF91435707DAA6 /* OneShotOneNightApp.swift */,
+				1821E05F79C70E651F508DB3 /* PrivacyInfo.xcprivacy */,
 				D659BE37A7457458AEB495AA /* QRScannerView.swift */,
 				591ADDF53770B97985B6C163 /* RootView.swift */,
 				93A4EA4A51062A43F58E9BF2 /* ScanLandingView.swift */,
@@ -100,6 +160,42 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3F1B41CEB083BD37E9BA86AB /* OneShotOneNightUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 020BCC4E30A8A2E43D862D08 /* Build configuration list for PBXNativeTarget "OneShotOneNightUITests" */;
+			buildPhases = (
+				4D9573777696183995D497CA /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EA9CE68A842C074369636590 /* PBXTargetDependency */,
+			);
+			name = OneShotOneNightUITests;
+			packageProductDependencies = (
+			);
+			productName = OneShotOneNightUITests;
+			productReference = 04DA0E1A481EB20996808A3B /* OneShotOneNightUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		7B0407168EEEE7A0926925C2 /* OneShotOneNightTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 28FD636C4380DBAAC0A2B60C /* Build configuration list for PBXNativeTarget "OneShotOneNightTests" */;
+			buildPhases = (
+				ADB7E371244B0C5713E0AE5A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				88B7047482F816D2542B09F4 /* PBXTargetDependency */,
+			);
+			name = OneShotOneNightTests;
+			packageProductDependencies = (
+			);
+			productName = OneShotOneNightTests;
+			productReference = 0AA7A44B14D8541D7A34D55A /* OneShotOneNightTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		EE7FBB9E8A4F4A5B9229C0D8 /* OneShotOneNight */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1C8E9E5ED7130067FC71415F /* Build configuration list for PBXNativeTarget "OneShotOneNight" */;
@@ -127,6 +223,15 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					3F1B41CEB083BD37E9BA86AB = {
+						DevelopmentTeam = 7B5U63YN3A;
+						ProvisioningStyle = Automatic;
+						TestTargetID = EE7FBB9E8A4F4A5B9229C0D8;
+					};
+					7B0407168EEEE7A0926925C2 = {
+						DevelopmentTeam = 7B5U63YN3A;
+						ProvisioningStyle = Automatic;
+					};
 					EE7FBB9E8A4F4A5B9229C0D8 = {
 						DevelopmentTeam = 7B5U63YN3A;
 						ProvisioningStyle = Automatic;
@@ -148,6 +253,8 @@
 			projectRoot = "";
 			targets = (
 				EE7FBB9E8A4F4A5B9229C0D8 /* OneShotOneNight */,
+				7B0407168EEEE7A0926925C2 /* OneShotOneNightTests */,
+				3F1B41CEB083BD37E9BA86AB /* OneShotOneNightUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -158,6 +265,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1BD84DEAB95184971C5B6AC3 /* Assets.xcassets in Resources */,
+				572464898CC0CC9AF159FD8F /* PrivacyInfo.xcprivacy in Resources */,
 				4CFF0EDD9FFF287B188126DF /* golden-event.jpg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -170,27 +278,78 @@
 			buildActionMask = 2147483647;
 			files = (
 				F1770F87C699D71BAF21B0F6 /* APIClient.swift in Sources */,
+				D1052ACD41F20C69BF98A054 /* AppConfiguration.swift in Sources */,
 				60B1D91BA8A314CDD391490F /* AppModel.swift in Sources */,
 				8EA34B76B24F62380B572734 /* CameraCaptureView.swift in Sources */,
+				6A35480E05419FC8E324181E /* Diagnostics.swift in Sources */,
 				879372A35D7F0E880F8141D7 /* GalleryView.swift in Sources */,
 				3342B606863F89D8D3ED16D9 /* GuestEventView.swift in Sources */,
 				27387A9F6DD77CA207326B1C /* Models.swift in Sources */,
 				6F72881DAD20EC62E0BBB2D7 /* OneShotOneNightApp.swift in Sources */,
+				DC1B1DF1EAE706DED1ED9F58 /* PendingUploadStore.swift in Sources */,
 				07709126DB8030CE6C206B67 /* PhotoReviewView.swift in Sources */,
 				EEF90C31BF49665FB34CA2C4 /* QRScannerView.swift in Sources */,
 				F0FA58AB482873DF18156A29 /* RootView.swift in Sources */,
 				C894118C4F23C13AC3F3AD1E /* ScanLandingView.swift in Sources */,
+				6167E159B27ABE41645BB60B /* SecureStore.swift in Sources */,
 				B7CDE7D0267BE81DEB257E64 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4D9573777696183995D497CA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1138EF043A3DC849C4427F70 /* OneShotOneNightUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ADB7E371244B0C5713E0AE5A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AABE6D2A72843A36F45C46BA /* OneShotOneNightTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		88B7047482F816D2542B09F4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EE7FBB9E8A4F4A5B9229C0D8 /* OneShotOneNight */;
+			targetProxy = 406BE76155AA12E70F95F7EA /* PBXContainerItemProxy */;
+		};
+		EA9CE68A842C074369636590 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EE7FBB9E8A4F4A5B9229C0D8 /* OneShotOneNight */;
+			targetProxy = 496691088A471A88C59B8E04 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		058044C2F5353895617B1C82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneshotonenight.app.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = OneShotOneNight;
+			};
+			name = Release;
+		};
 		425EE758C7C7F259D2063345 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				API_BASE_URL = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -249,6 +408,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PUBLIC_WEB_URL = "https://one-shot-one-night.vercel.app";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -256,10 +416,28 @@
 			};
 			name = Debug;
 		};
+		59D8A59B3CAE91C43C26B42F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneshotonenight.app.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = OneShotOneNight;
+			};
+			name = Debug;
+		};
 		871B9E158CA7A62756985320 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				API_BASE_URL = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -311,6 +489,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PUBLIC_WEB_URL = "https://one-shot-one-night.vercel.app";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -318,10 +497,28 @@
 			};
 			name = Release;
 		};
+		9539A17BC4C35889E2FFB6D6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneshotonenight.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OneShotOneNight.app/OneShotOneNight";
+			};
+			name = Release;
+		};
 		9E6054756D8E464D8E9058A0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/OneShotOneNight.Debug.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -331,6 +528,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.oneshotonenight.app;
 				PRODUCT_NAME = OneShotOneNight;
 				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
@@ -339,6 +537,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/OneShotOneNight.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -348,18 +547,54 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.oneshotonenight.app;
 				PRODUCT_NAME = OneShotOneNight;
 				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
+		DA182EFBFF6D7F723617793B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneshotonenight.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OneShotOneNight.app/OneShotOneNight";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		020BCC4E30A8A2E43D862D08 /* Build configuration list for PBXNativeTarget "OneShotOneNightUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				59D8A59B3CAE91C43C26B42F /* Debug */,
+				058044C2F5353895617B1C82 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		1C8E9E5ED7130067FC71415F /* Build configuration list for PBXNativeTarget "OneShotOneNight" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				9E6054756D8E464D8E9058A0 /* Debug */,
 				D95DA3C0E559C50C89C5602F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		28FD636C4380DBAAC0A2B60C /* Build configuration list for PBXNativeTarget "OneShotOneNightTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA182EFBFF6D7F723617793B /* Debug */,
+				9539A17BC4C35889E2FFB6D6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -27,12 +27,18 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>APIBaseURL</key>
+	<string>$(API_BASE_URL)</string>
+	<key>PublicWebURL</key>
+	<string>$(PUBLIC_WEB_URL)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Use your camera to capture photos for this private event.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose photos to add to this private event.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save party photos to your photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
