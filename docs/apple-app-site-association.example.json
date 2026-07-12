@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["APPLE_TEAM_ID.com.company.app", "APPLE_TEAM_ID.com.company.app.Clip"],
+        "components": [
+          { "/": "/e/*" },
+          { "/": "/clip/*" }
+        ]
+      }
+    ]
+  },
+  "appclips": {
+    "apps": ["APPLE_TEAM_ID.com.company.app.Clip"]
+  }
+}

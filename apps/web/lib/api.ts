@@ -1,5 +1,3 @@
-import * as tus from "tus-js-client";
-
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
 const defaultSupabaseApiBase = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
 const publicWebBase = "https://one-shot-one-night.vercel.app";
@@ -8,6 +6,10 @@ const guestTokenKey = "oneshot_guest_token";
 const guestAccessTokenPrefix = "oneshot_guest_access:";
 
 export function apiBaseURL() {
+  // Browser traffic goes through the web origin. This avoids an extra CORS
+  // preflight for every authenticated API request. Direct access remains
+  // available for non-browser consumers and explicit local troubleshooting.
+  if (typeof window !== "undefined") return "";
   if (configuredApiBase) return configuredApiBase.replace(/\/$/, "");
   return defaultSupabaseApiBase;
 }
@@ -148,10 +150,10 @@ export function hasAdminToken() {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   const headers = new Headers(init?.headers);
-  if (!headers.has("Content-Type")) {
+  const method = init?.method ?? "GET";
+  if (init?.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const method = init?.method ?? "GET";
   if (path.startsWith("/api/v1/admin/") && path !== "/api/v1/admin/login") {
     const token = localStorage.getItem(adminTokenKey);
     if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -218,8 +220,16 @@ export function adminEvents(params?: { q?: string; status?: string }) {
   if (params?.q) search.set("q", params.q);
   if (params?.status) search.set("status", params.status);
   const suffix = search.toString() ? `?${search}` : "";
-  return request<{ events: AdminEventSummary[] }>(`/api/v1/admin/events${suffix}`);
+  const key = suffix;
+  const existing = pendingAdminEventRequests.get(key);
+  if (existing) return existing;
+  const pending = request<{ events: AdminEventSummary[] }>(`/api/v1/admin/events${suffix}`)
+    .finally(() => pendingAdminEventRequests.delete(key));
+  pendingAdminEventRequests.set(key, pending);
+  return pending;
 }
+
+const pendingAdminEventRequests = new Map<string, Promise<{ events: AdminEventSummary[] }>>();
 
 export function adminCreateEvent(payload: unknown) {
   return request<{ event: EventRecord; guest_url: string; access_token: string }>("/api/v1/admin/events", {
@@ -328,6 +338,7 @@ async function prepareGuestPhoto(slug: string, accessToken: string, file: File, 
 }
 
 async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File, slug: string, accessToken: string, onProgress?: (loaded: number) => void) {
+  const tus = await import("tus-js-client");
   const directUpload = Boolean(prepared.resumable_url && prepared.upload_signature);
   await new Promise<void>((resolve, reject) => {
     const upload = new tus.Upload(file, {

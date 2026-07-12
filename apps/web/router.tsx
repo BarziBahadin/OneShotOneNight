@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from "react-router-dom";
+import HomePage from "@/app/page";
 
-const HomePage = lazy(() => import("@/app/page"));
 const AdminDashboard = lazy(() => import("@/components/admin-dashboard").then((module) => ({ default: module.AdminDashboard })));
 const AdminEventCreator = lazy(() => import("@/components/admin-event-creator").then((module) => ({ default: module.AdminEventCreator })));
 const AdminEventDetailView = lazy(() => import("@/components/admin-event-detail").then((module) => ({ default: module.AdminEventDetailView })));

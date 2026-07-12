@@ -55,6 +55,24 @@
       ]
     },
     {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(favicon-32.png|app-icon-80.png|app-icon-192.png|app-icon-512.png|apple-touch-icon.png)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/pics/(.*).webp",
       "headers": [
         {
@@ -74,6 +92,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://huakafctiajezinrzfle.supabase.co/functions/v1/api/api/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

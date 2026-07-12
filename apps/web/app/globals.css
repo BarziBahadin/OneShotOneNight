@@ -61,6 +61,12 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
+/* Skip layout and paint for homepage content that is still below the fold. */
+main.app-frame > section:nth-of-type(n + 2) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 700px;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: "Playfair Display", Georgia, Cambria, "Times New Roman", serif;
   letter-spacing: -0.025em;

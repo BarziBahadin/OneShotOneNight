@@ -46,9 +46,12 @@ async function route(req: Request, client: SupabaseClient) {
   throw new HTTPError(404, "Not found", "not_found");
 }
 
-async function config(client: SupabaseClient) {
+let cachedConfig: { value: any; expiresAt: number } | undefined;
+async function config(client: SupabaseClient, fresh = false) {
+  if (!fresh && cachedConfig && cachedConfig.expiresAt > Date.now()) return cachedConfig.value;
   const { data, error } = await client.from("app_config").select("admin_password_hash,token_pepper").eq("id", true).single();
   if (error || !data) throw error || new Error("Missing app config");
+  cachedConfig = { value: data, expiresAt: Date.now() + 5 * 60_000 };
   return data;
 }
 
@@ -56,7 +59,7 @@ async function adminRoute(req: Request, url: URL, parts: string[], client: Supab
   const action = parts[0] || "";
   if (action === "login" && req.method === "POST") {
     const body = await bodyJSON(req);
-    const cfg = await config(client);
+    const cfg = await config(client, true);
     if (!safeEqual(await sha256(String(body.password || "")), cfg.admin_password_hash)) throw new HTTPError(401, "Unauthorized", "unauthorized");
     const token = randomToken();
     const expires = new Date(Date.now() + 12 * 3600_000).toISOString();
@@ -67,6 +70,9 @@ async function adminRoute(req: Request, url: URL, parts: string[], client: Supab
   if (action === "me") {
     const session = await adminSession(req, client, false);
     return json(session ? { authenticated: true, expires_at: session.expires_at } : { authenticated: false });
+  }
+  if (action === "events" && !parts[1] && req.method === "GET") {
+    return json(await adminEventsSnapshot(req, url, client));
   }
   const session = await adminSession(req, client, true);
   if (action === "logout" && req.method === "POST") {
@@ -83,7 +89,8 @@ async function adminRoute(req: Request, url: URL, parts: string[], client: Supab
       const q = (url.searchParams.get("q") || "").toLowerCase();
       const status = url.searchParams.get("status") || "";
       const events = (data || []).filter((e) => (!q || e.name.toLowerCase().includes(q) || e.slug.includes(q)) && (!status || e.status === status));
-      const summaries = await Promise.all(events.map(async (event) => ({ event, ...(await eventStats(client, event.id)) })));
+      const stats = await eventStatsForEvents(client, events.map((event) => event.id));
+      const summaries = events.map((event) => ({ event, ...stats.get(event.id)! }));
       return json({ events: summaries });
     }
     if (req.method === "POST") return createEvent(req, client);
@@ -154,6 +161,29 @@ async function adminSession(req: Request, client: SupabaseClient, required: bool
   if (!data && required) throw new HTTPError(401, "Unauthorized", "unauthorized"); return data;
 }
 
+async function adminEventsSnapshot(req: Request, url: URL, client: SupabaseClient) {
+  const raw = bearer(req);
+  if (!raw) throw new HTTPError(401, "Unauthorized", "unauthorized");
+  const cfg = await config(client);
+  const sessionID = await tokenHash(raw, cfg.token_pepper);
+  const { data, error } = await client.rpc("admin_events_snapshot", {
+    p_session_id: sessionID,
+    p_query: url.searchParams.get("q") || "",
+    p_status: url.searchParams.get("status") || ""
+  });
+  if (error) {
+    if (error.code === "42501") throw new HTTPError(401, "Unauthorized", "unauthorized");
+    throw error;
+  }
+  return { events: (data || []).map((row: any) => ({
+    event: row.event,
+    guest_count: Number(row.guest_count) || 0,
+    photo_count: Number(row.photo_count) || 0,
+    pending_photos: Number(row.pending_photos) || 0,
+    storage_bytes: Number(row.storage_bytes) || 0
+  })) };
+}
+
 async function overview(client: SupabaseClient) {
   const now = new Date().toISOString();
   const [events, open, upcoming, guests, photos, pending, bytes, media, pendingMedia, mediaBytes] = await Promise.all([
@@ -163,6 +193,20 @@ async function overview(client: SupabaseClient) {
 }
 
 async function count(client: SupabaseClient, table: string, alter: (q: any) => any = (q) => q) { const { count, error } = await alter(client.from(table).select("*", { count: "exact", head: true })); if (error) throw error; return count || 0; }
+async function eventStatsForEvents(client: SupabaseClient, eventIDs: string[]) {
+  type Stats = { guest_count: number; photo_count: number; pending_photos: number; storage_bytes: number };
+  const stats = new Map<string, Stats>(eventIDs.map((id) => [id, { guest_count: 0, photo_count: 0, pending_photos: 0, storage_bytes: 0 }]));
+  if (!eventIDs.length) return stats;
+  const { data, error } = await client.rpc("admin_event_stats", { p_event_ids: eventIDs });
+  if (error) throw error;
+  for (const row of data || []) stats.set(row.event_id, {
+    guest_count: Number(row.guest_count) || 0,
+    photo_count: Number(row.photo_count) || 0,
+    pending_photos: Number(row.pending_photos) || 0,
+    storage_bytes: Number(row.storage_bytes) || 0
+  });
+  return stats;
+}
 async function eventStats(client: SupabaseClient, id: string) {
   const [guest_count, photo_count, pending_photos, sizes, media_count, pending_media, media_sizes] = await Promise.all([
     count(client, "guests", (q) => q.eq("event_id", id)),

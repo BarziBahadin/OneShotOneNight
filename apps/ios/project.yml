@@ -24,6 +24,9 @@ targets:
       - path: App
     resources:
       - path: Shared/Resources
+    dependencies:
+      - target: AppClip
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app
@@ -36,6 +39,29 @@ targets:
       configs:
         Debug:
           CODE_SIGN_ENTITLEMENTS: App/OneShotOneNight.Debug.entitlements
+  AppClip:
+    type: com.apple.product-type.application.on-demand-install-capable
+    platform: iOS
+    sources:
+      - path: AppClip
+      - path: Shared/Theme.swift
+    resources:
+      - path: Shared/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app.Clip
+        PRODUCT_NAME: OneShotOneNight Clip
+        INFOPLIST_FILE: AppClip/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AppClip/AppClip.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: false
+        SKIP_INSTALL: true
+        APP_CLIP_ASSOCIATED_DOMAIN: example.com
+      configs:
+        Debug:
+          APP_CLIP_TEST_MODE: true
+        Release:
+          APP_CLIP_TEST_MODE: false
   OneShotOneNightTests:
     type: bundle.unit-test
     platform: iOS
@@ -72,5 +98,16 @@ schemes:
         - OneShotOneNightUITests
     run:
       config: Debug
+    archive:
+      config: Release
+  AppClip:
+    build:
+      targets:
+        AppClip: all
+    run:
+      config: Debug
+      environmentVariables:
+        APP_CLIP_TEST_MODE: "true"
+        _XCAppClipURL: "https://example.com/e/test-event"
     archive:
       config: Release

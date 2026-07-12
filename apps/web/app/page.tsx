@@ -28,7 +28,15 @@ export default function HomePage() {
     <main className="app-frame flex flex-col gap-10">
       <nav className="flex flex-wrap items-center justify-between gap-3 border-b hairline pb-5">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
-          <img src="/app-icon-192.png" alt="" className="h-10 w-10 rounded-xl object-cover shadow-[0_0_18px_rgba(36,99,235,0.24)]" aria-hidden="true" />
+          <img
+            src="/app-icon-80.png"
+            alt=""
+            width={80}
+            height={80}
+            className="h-10 w-10 rounded-xl object-cover shadow-[0_0_18px_rgba(36,99,235,0.24)]"
+            decoding="async"
+            aria-hidden="true"
+          />
           <span>OneShotOneNight</span>
         </Link>
         <div className="flex flex-wrap gap-2">

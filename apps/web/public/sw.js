@@ -1,4 +1,4 @@
-const VERSION = "oneshotonenight-v7";
+const VERSION = "oneshotonenight-v8";
 const APP_SHELL_CACHE = `${VERSION}-app-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -6,13 +6,7 @@ const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
   "/app-icon-192.png",
-  "/app-icon-512.png",
-  "/apple-touch-icon.png",
-  "/favicon-32.png",
-  "/admin/login",
-  "/admin",
-  "/admin/events",
-  "/admin/events/new"
+  "/favicon-32.png"
 ];
 
 self.addEventListener("install", (event) => {
