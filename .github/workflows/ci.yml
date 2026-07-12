@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/api/index.ts supabase/functions/create-guest-upload-session/index.ts supabase/functions/complete-guest-upload/index.ts
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase db start
+      - run: supabase db reset --local
+      - run: supabase db lint --local --level warning
+      - run: supabase test db
+
+  ios:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -project OneShotOneNight.xcodeproj -scheme OneShotOneNight -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+      - run: xcodebuild -project OneShotOneNight.xcodeproj -scheme OneShotOneNight -destination 'platform=iOS Simulator,OS=latest,name=iPhone 16 Pro' -only-testing:OneShotOneNightTests CODE_SIGNING_ALLOWED=NO test

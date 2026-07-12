@@ -34,16 +34,8 @@ Deno.serve(async (req) => {
     if (!files.length) throw new HTTPError(400, "At least one file is required", "validation_error");
 
     const sessionID = id26();
-    const { error: sessionError } = await client.from("guest_upload_sessions").insert({
-      id: sessionID,
-      event_id: event.id,
-      guest_name: guestName,
-      guest_message: guestMessage,
-      status: "uploading"
-    });
-    if (sessionError) throw sessionError;
-
     const uploadUrls = [];
+    const mediaRows = [];
     for (const file of files) {
       const contentType = String(file.content_type || file.file_type || "").toLowerCase();
       if (!allowedTypes.has(contentType)) throw new HTTPError(400, "Unsupported file type", "validation_error");
@@ -56,6 +48,19 @@ Deno.serve(async (req) => {
       const { data, error } = await client.storage.from(bucket).createSignedUploadUrl(storagePath);
       if (error) throw error;
 
+      mediaRows.push({
+        id: mediaID,
+        event_id: event.id,
+        guest_upload_session_id: sessionID,
+        guest_name: guestName,
+        file_name: fileName,
+        file_type: contentType,
+        file_size: fileSize,
+        storage_path: storagePath,
+        media_type: type,
+        upload_status: "pending",
+        approval_status: "pending"
+      });
       uploadUrls.push({
         media_id: mediaID,
         file_name: fileName,
@@ -66,6 +71,21 @@ Deno.serve(async (req) => {
         upload_url: data.signedUrl,
         upload_headers: { "Content-Type": contentType }
       });
+    }
+
+    const { error: sessionError } = await client.from("guest_upload_sessions").insert({
+      id: sessionID,
+      event_id: event.id,
+      guest_name: guestName,
+      guest_message: guestMessage,
+      status: "uploading"
+    });
+    if (sessionError) throw sessionError;
+
+    const { error: mediaError } = await client.from("event_media").insert(mediaRows);
+    if (mediaError) {
+      await client.from("guest_upload_sessions").delete().eq("id", sessionID);
+      throw mediaError;
     }
 
     return json({

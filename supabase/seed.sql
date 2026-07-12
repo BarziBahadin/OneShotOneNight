@@ -1,0 +1,2 @@
+-- Intentionally empty. Keep this file so `supabase db reset` remains reproducible
+-- while production-like fixtures are added deliberately in future migrations.

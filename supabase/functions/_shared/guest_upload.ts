@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.95.0";
 
 export const bucket = "oneshotonenight";
+const webOrigin = new URL(Deno.env.get("PUBLIC_WEB_URL") || "https://one-shot-one-night.vercel.app").origin;
 
 export const allowedTypes = new Set([
   "image/jpeg",
@@ -14,7 +15,8 @@ export const allowedTypes = new Set([
 ]);
 
 export const cors = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": webOrigin,
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "authorization, content-type, idempotency-key, x-guest-token",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
@@ -128,6 +130,30 @@ export function positiveSize(value: unknown) {
     throw new HTTPError(400, "Invalid file size", "validation_error");
   }
   return size;
+}
+
+export async function verifyStoredObject(
+  client: SupabaseClient,
+  storagePath: string,
+  expectedSize: number,
+  expectedType: string
+) {
+  const separator = storagePath.lastIndexOf("/");
+  const folder = separator >= 0 ? storagePath.slice(0, separator) : "";
+  const fileName = separator >= 0 ? storagePath.slice(separator + 1) : storagePath;
+  const { data, error } = await client.storage.from(bucket).list(folder, { limit: 2, search: fileName });
+  if (error) throw error;
+  const object = (data || []).find((item) => item.name === fileName);
+  if (!object) throw new HTTPError(400, "Uploaded file was not found in storage", "upload_missing");
+  const metadata = (object.metadata || {}) as Record<string, unknown>;
+  const actualSize = Number(metadata.size ?? 0);
+  const actualType = String(metadata.mimetype ?? metadata.contentType ?? "").toLowerCase();
+  if (actualSize !== Number(expectedSize)) {
+    throw new HTTPError(400, "Uploaded file size does not match the upload request", "upload_size_mismatch");
+  }
+  if (actualType && actualType !== expectedType.toLowerCase()) {
+    throw new HTTPError(400, "Uploaded file type does not match the upload request", "upload_type_mismatch");
+  }
 }
 
 export async function tokenHash(token: string, pepper: string) {

@@ -1,6 +1,6 @@
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
 const defaultSupabaseApiBase = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
-const publicWebBase = "https://one-shot-one-night.vercel.app";
+const publicWebBase = import.meta.env.VITE_PUBLIC_WEB_URL || "https://one-shot-one-night.vercel.app";
 const adminTokenKey = "oneshot_admin_token";
 const guestTokenKey = "oneshot_guest_token";
 const guestAccessTokenPrefix = "oneshot_guest_access:";
