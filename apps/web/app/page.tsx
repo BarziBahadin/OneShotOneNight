@@ -1,26 +1,22 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarDays, Camera, Images, QrCode, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Camera, Images, QrCode, ShieldCheck } from "lucide-react";
 
-const metrics = [
-  ["0 accounts", "Guests join from the QR code"],
-  ["1 admin", "You control every event"],
-  ["3 steps", "Create, share, collect"]
+const promises = [
+  ["No app to install", "Guests scan and start shooting"],
+  ["Private by design", "Only people with your link get in"],
+  ["Your reveal, your time", "Keep the gallery hidden until you’re ready"]
 ];
 
 const features = [
-  [QrCode, "QR-ready events", "Create events ahead of time and keep the guest QR ready before anyone arrives."],
-  [Camera, "Camera and gallery uploads", "Guests can use the phone camera, live camera, or choose multiple photos from their gallery."],
-  [ShieldCheck, "Host controls", "Photos publish automatically on your schedule, while you can hide or delete anything at any time."],
-  [CalendarDays, "Delayed reveal", "Set start, end, and reveal times so the gallery opens exactly when you want."],
-  [Users, "Guest controls", "Track guests, shot limits, uploads, and block a guest if you need to."],
-  [Images, "Shareable gallery", "Approved photos flow into a polished event gallery for everyone to enjoy."]
+  [Camera, "Every perspective", "The dance floor, the quiet table, the blurry midnight selfie—collect the moments one photographer could never see alone."],
+  [ShieldCheck, "Private by design", "Your event stays behind one private link. You decide when uploads close, what appears, and who can return to the gallery."],
+  [Images, "A reveal worth waiting for", "Keep every photo hidden during the event, then open one beautiful shared gallery when the night is ready to be relived."]
 ];
 
 const steps = [
-  ["Create", "Set the event details, future dates, upload limits, and gallery rules."],
-  ["Share", "Print or send the QR-ready guest link before the event starts."],
-  ["Collect", "Guests scan, join, and upload photos from camera or gallery."],
-  ["Reveal", "The gallery opens automatically at the time you chose, with no extra work."]
+  ["Set the frame", "Create your event, choose the upload window, and decide when the gallery should open."],
+  ["Pass it around", "Place the QR code on a table or invitation. Guests scan it—no download and no account."],
+  ["Relive the night", "When the time comes, Nightframe turns everyone’s photos into one private gallery."]
 ];
 
 export default function HomePage() {
@@ -29,40 +25,38 @@ export default function HomePage() {
       <nav className="flex flex-wrap items-center justify-between gap-3 border-b hairline pb-5">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
           <img
-            src="/app-icon-80.png"
+            src="/brand/nightframe-mark-gold.png"
             alt=""
             width={80}
             height={80}
-            className="h-10 w-10 rounded-xl object-cover shadow-[0_0_18px_rgba(36,99,235,0.24)]"
+            className="h-10 w-10 object-contain"
             decoding="async"
             aria-hidden="true"
           />
-          <span>OneShotOneNight</span>
+          <span>Nightframe</span>
         </Link>
         <div className="flex flex-wrap gap-2">
-          <Link className="btn-ghost text-sm" to="/admin">Admin</Link>
-          <Link className="btn-primary text-sm" to="/admin/events/new">Create event</Link>
+          <Link className="btn-ghost text-sm" to="/admin">Host sign in</Link>
+          <Link className="btn-primary text-sm" to="/admin/events/new">Create a Nightframe</Link>
         </div>
       </nav>
 
       <section className="grid min-h-[78vh] gap-10 py-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-center lg:py-14">
         <div className="relative z-10">
-          <p className="eyebrow mb-4">Private event camera</p>
-          <h1 className="editorial-title max-w-3xl">Every guest sees a different night.</h1>
+          <p className="eyebrow mb-4">One night. Every perspective.</p>
+          <h1 className="editorial-title max-w-3xl">The night, as everyone saw it.</h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-moss">
-            Create the event, share one QR code, collect guest photos, and reveal a clean gallery automatically when the night is ready.
+            Give every guest the same private camera with one QR code. Collect the candid moments, keep them hidden, and reveal the whole story when you’re ready.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link className="btn-primary px-5 py-3" to="/admin/events/new">
-              Create an event <ArrowRight className="h-4 w-4" />
+              Create your Nightframe <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link className="btn-dark px-5 py-3" to="/admin">
-              Open admin
-            </Link>
+            <a className="btn-dark px-5 py-3" href="#how-it-works">See how it works</a>
           </div>
-          <div className="mt-10 grid max-w-2xl grid-cols-3 border-y hairline">
-            {metrics.map(([value, label]) => (
-              <div key={value} className="border-r hairline px-3 py-5 last:border-r-0 sm:px-5">
+          <div className="mt-10 grid max-w-2xl border-y hairline sm:grid-cols-3">
+            {promises.map(([value, label]) => (
+              <div key={value} className="border-b hairline px-3 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:px-5 sm:last:border-r-0">
                 <p className="text-lg font-semibold sm:text-xl">{value}</p>
                 <p className="mt-1 text-xs leading-5 text-moss sm:text-sm">{label}</p>
               </div>
@@ -84,8 +78,8 @@ export default function HomePage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
           <figcaption className="absolute inset-x-0 bottom-0 p-7 sm:p-9">
-            <p className="eyebrow">Caught by the people there</p>
-            <h2 className="mt-3 max-w-xl text-4xl font-semibold text-white sm:text-5xl">The moments between the planned moments.</h2>
+            <p className="eyebrow">No shot list. No posing.</p>
+            <h2 className="mt-3 max-w-xl text-4xl font-semibold text-white sm:text-5xl">The moments between the moments.</h2>
           </figcaption>
         </figure>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
@@ -99,7 +93,7 @@ export default function HomePage() {
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-            <figcaption className="absolute bottom-0 p-6 text-xl font-semibold text-white">Before everyone arrives.</figcaption>
+            <figcaption className="absolute bottom-0 p-6 text-xl font-semibold text-white">The calm before everyone arrives.</figcaption>
           </figure>
           <figure className="relative min-h-64 overflow-hidden rounded-[2rem]">
             <ResponsivePhoto
@@ -111,12 +105,12 @@ export default function HomePage() {
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
-            <figcaption className="absolute bottom-0 p-6 text-xl font-semibold text-white">Long after the lights come on.</figcaption>
+            <figcaption className="absolute bottom-0 p-6 text-xl font-semibold text-white">The story only your guests could tell.</figcaption>
           </figure>
         </div>
       </section>
 
-      <section id="features" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <section id="features" className="grid gap-4 lg:grid-cols-3">
         {features.map(([Icon, title, copy]) => (
           <article key={String(title)} className="surface p-5">
             <Icon className="h-7 w-7 text-coral" aria-hidden="true" />
@@ -126,12 +120,12 @@ export default function HomePage() {
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+      <section id="how-it-works" className="grid scroll-mt-8 gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
         <div>
           <p className="eyebrow mb-3">How it works</p>
-          <h2 className="text-3xl font-black leading-tight sm:text-5xl">From empty event to a shared gallery without guest accounts.</h2>
+          <h2 className="text-3xl font-black leading-tight sm:text-5xl">Three steps. No guest accounts. Nothing to explain.</h2>
           <p className="mt-4 max-w-xl leading-7 text-ink/70">
-            The app is built for real event flow: prepare everything early, let guests upload fast, and keep final control in your hands.
+            Nightframe stays out of the way during the event and brings everyone back together afterward.
           </p>
         </div>
         <div className="grid gap-3">
@@ -147,16 +141,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="surface grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0f1b2d] p-7 shadow-[0_32px_100px_rgba(0,0,0,0.32)] sm:p-10 lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
+        <img src="/brand/nightframe-mark-gold.png" alt="" className="pointer-events-none absolute -right-16 -top-24 h-80 w-80 object-contain opacity-[0.06]" aria-hidden="true" />
         <div>
-          <p className="eyebrow mb-3">Ready before the event</p>
-          <h2 className="text-3xl font-black leading-tight">Create future events and keep the QR code ready.</h2>
-          <p className="mt-3 max-w-2xl leading-7 text-moss">
-            Set the date now, print the QR code, and open the event when guests arrive. Upcoming events stay visible in your admin dashboard.
+          <p className="eyebrow mb-3">Your night deserves every angle</p>
+          <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl">Make a gallery nobody else could have photographed.</h2>
+          <p className="mt-3 max-w-2xl leading-7 text-white/65">
+            Create the event now, share the QR when you’re ready, and let Nightframe hold every perspective until the reveal.
           </p>
         </div>
-        <Link className="btn-primary px-5 py-3" to="/admin/events/new">
-          Schedule an event <CalendarDays className="h-4 w-4" />
+        <Link className="btn-primary relative mt-6 px-5 py-3 lg:mt-0" to="/admin/events/new">
+          Create your Nightframe <ArrowRight className="h-4 w-4" />
         </Link>
       </section>
     </main>

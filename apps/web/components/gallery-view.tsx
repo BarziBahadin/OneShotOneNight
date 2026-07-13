@@ -78,7 +78,7 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
   async function shareLink() {
     try {
       if (navigator.share) {
-        await navigator.share({ title: event?.name ?? "OneShotOneNight album", url: link });
+        await navigator.share({ title: event?.name ?? "Nightframe album", url: link });
         setToast("Share sheet opened.");
       } else {
         await navigator.clipboard.writeText(link);
@@ -122,7 +122,7 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
             <div className="rounded-[2rem] bg-white p-5">
               {qrDataURL ? <img src={qrDataURL} alt={`QR code for ${event?.name ?? "event"}`} width="760" height="760" decoding="async" className="aspect-square w-full" /> : <div className="grid aspect-square place-items-center text-sm font-bold text-black/50">Creating QR...</div>}
             </div>
-            <p className="mt-4 text-center text-sm font-bold text-white">{event?.name ?? "OneShotOneNight"}</p>
+            <p className="mt-4 text-center text-sm font-bold text-white">{event?.name ?? "Nightframe"}</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button type="button" onClick={shareLink} className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white text-sm font-bold text-black">
                 <Share2 className="h-4 w-4" /> Share link

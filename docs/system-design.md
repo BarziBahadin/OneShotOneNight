@@ -1,4 +1,4 @@
-# OneShotOneNight — high-level system design
+# Nightframe — high-level system design
 
 The client stays deliberately thin: event rules and access decisions live in the API, while image bytes move directly between the client and object storage through short-lived presigned URLs.
 

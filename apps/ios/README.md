@@ -1,4 +1,4 @@
-# OneShotOneNight iOS
+# Nightframe iOS
 
 Native SwiftUI iPhone app with QR scanning.
 

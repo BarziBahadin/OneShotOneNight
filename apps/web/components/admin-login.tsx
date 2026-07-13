@@ -34,7 +34,7 @@ export function AdminLogin() {
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
           <div className="relative flex items-center gap-3">
             <img src="/app-icon-192.png" alt="" className="h-11 w-11 rounded-xl object-cover shadow-[0_0_24px_rgba(37,99,235,0.36)]" aria-hidden="true" />
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/65">OneShotOneNight</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/65">Nightframe</p>
           </div>
           <div className="relative">
             <p className="max-w-sm font-['Playfair_Display'] text-6xl font-semibold leading-[0.95]">The night belongs to everyone.</p>

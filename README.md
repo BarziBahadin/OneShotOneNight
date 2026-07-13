@@ -1,4 +1,6 @@
-# OneShotOneNight
+# Nightframe
+
+**One night. Every perspective.**
 
 A QR-based private event camera and reveal gallery for weddings, parties, trips, graduations, and company events.
 
@@ -159,4 +161,3 @@ The Supabase Edge Function is the only supported data-access path. Application t
 Image binaries upload directly to object storage through presigned URLs. The API stores metadata and object keys, and streams ZIP downloads from object storage for hosts.
 
 Guest identity never uses MAC addresses or invasive fingerprinting. Guests receive a cryptographically random token in an HttpOnly cookie; the server stores only a peppered hash. Invitation capabilities are exchanged for that cookie and removed from the browser address bar. Postgres stores a non-secret rotation version instead of the plaintext invitation token.
-# OneShotOneNight

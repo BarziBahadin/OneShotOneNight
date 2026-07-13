@@ -1,14 +1,14 @@
 {
-  "name": "OneShotOneNight",
-  "short_name": "OneShot",
+  "name": "Nightframe",
+  "short_name": "Nightframe",
   "id": "/",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
-  "description": "Camera-first private event photo app with delayed reveal galleries.",
+  "background_color": "#0F1B2D",
+  "theme_color": "#0F1B2D",
+  "description": "One night. Every perspective. A private event camera with reveal galleries.",
   "categories": ["photo", "events", "social"],
   "icons": [
     {

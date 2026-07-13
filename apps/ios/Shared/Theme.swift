@@ -2,6 +2,9 @@ import SwiftUI
 import UIKit
 
 enum Theme {
+    static let nightNavy = Color(red: 15 / 255, green: 27 / 255, blue: 45 / 255)
+    static let champagneGold = Color(red: 203 / 255, green: 162 / 255, blue: 106 / 255)
+    static let softIvory = Color(red: 247 / 255, green: 247 / 255, blue: 245 / 255)
     static let background = Color(red: 11 / 255, green: 11 / 255, blue: 11 / 255)
     static let surface = Color(red: 23 / 255, green: 23 / 255, blue: 23 / 255)
     static let surfaceElevated = Color(red: 30 / 255, green: 30 / 255, blue: 30 / 255)
@@ -19,6 +22,37 @@ enum Theme {
 
     static func display(_ size: CGFloat) -> Font {
         .system(size: size, weight: .regular, design: .serif)
+    }
+}
+
+struct NightframeBrandMark: View {
+    var body: some View {
+        if let url = Bundle.main.url(forResource: "nightframe-mark-gold", withExtension: "png"),
+           let image = UIImage(contentsOfFile: url.path) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+struct NightframeSplashView: View {
+    var body: some View {
+        ZStack {
+            Theme.nightNavy.ignoresSafeArea()
+            VStack(spacing: 22) {
+                NightframeBrandMark()
+                    .frame(width: 132, height: 132)
+                Text("Nightframe")
+                    .font(.system(size: 38, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.softIvory)
+                Text("ONE NIGHT. EVERY PERSPECTIVE.")
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(2.4)
+                    .foregroundStyle(Theme.champagneGold)
+            }
+        }
     }
 }
 

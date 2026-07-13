@@ -2,9 +2,11 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var appModel
+    @State private var showsSplash = true
 
     var body: some View {
-        Group {
+        ZStack {
+            Group {
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-camera-design-preview") {
                 CameraCaptureView(
@@ -24,6 +26,17 @@ struct RootView: View {
             #else
             productionContent
             #endif
+            }
+            if showsSplash {
+                NightframeSplashView()
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+        }
+        .task {
+            guard showsSplash else { return }
+            try? await Task.sleep(for: .milliseconds(900))
+            withAnimation(.easeOut(duration: 0.35)) { showsSplash = false }
         }
     }
 

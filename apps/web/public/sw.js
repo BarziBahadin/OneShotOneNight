@@ -1,4 +1,4 @@
-const VERSION = "oneshotonenight-v8";
+const VERSION = "nightframe-v9";
 const APP_SHELL_CACHE = `${VERSION}-app-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 

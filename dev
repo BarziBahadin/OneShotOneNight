@@ -19,7 +19,7 @@ if [[ -n "$web_pid" ]]; then
     kill "$web_pid"
     while kill -0 "$web_pid" 2>/dev/null; do sleep 0.1; done
   else
-    echo "OneShotOneNight is already running:"
+    echo "Nightframe is already running:"
     echo "  Local:   http://localhost:3000/"
     LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
     if [[ -n "$LAN_IP" ]]; then
