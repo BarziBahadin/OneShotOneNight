@@ -25,7 +25,7 @@ export default function HomePage() {
       <nav className="flex flex-wrap items-center justify-between gap-3 border-b hairline pb-5">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
           <img
-            src="/brand/nightframe-mark-gold.png"
+            src="/brand/nightframe-mark-gold.svg"
             alt=""
             width={80}
             height={80}
@@ -142,7 +142,7 @@ export default function HomePage() {
       </section>
 
       <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0f1b2d] p-7 shadow-[0_32px_100px_rgba(0,0,0,0.32)] sm:p-10 lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
-        <img src="/brand/nightframe-mark-gold.png" alt="" className="pointer-events-none absolute -right-16 -top-24 h-80 w-80 object-contain opacity-[0.06]" aria-hidden="true" />
+        <img src="/brand/nightframe_logo_white.svg" alt="" className="pointer-events-none absolute -right-16 -top-24 h-80 w-80 object-contain opacity-[0.06]" aria-hidden="true" />
         <div>
           <p className="eyebrow mb-3">Your night deserves every angle</p>
           <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl">Make a gallery nobody else could have photographed.</h2>

@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum SecureStore {
-    private static let service = "com.oneshotonenight.app"
+    private static let service = "com.barzibahadin.nightframe"
 
     static func string(for key: String) -> String? {
         let query: [String: Any] = [

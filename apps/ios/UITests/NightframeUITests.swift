@@ -1,7 +1,7 @@
 import XCTest
 
 @MainActor
-final class OneShotOneNightUITests: XCTestCase {
+final class NightframeUITests: XCTestCase {
     func testScanLandingScreenLaunches() {
         let app = XCUIApplication()
         app.launch()

@@ -1,6 +1,6 @@
-name: OneShotOneNight
+name: Nightframe
 options:
-  bundleIdPrefix: com.oneshotonenight
+  bundleIdPrefix: com.barzibahadin.nightframe
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -16,7 +16,7 @@ settings:
     API_BASE_URL: https://huakafctiajezinrzfle.supabase.co/functions/v1/api
     PUBLIC_WEB_URL: https://one-shot-one-night.vercel.app
 targets:
-  OneShotOneNight:
+  Nightframe:
     type: application
     platform: iOS
     sources:
@@ -24,90 +24,54 @@ targets:
       - path: App
     resources:
       - path: Shared/Resources
-    dependencies:
-      - target: AppClip
-        embed: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app
-        PRODUCT_NAME: OneShotOneNight
+        PRODUCT_BUNDLE_IDENTIFIER: com.barzibahadin.nightframe
+        PRODUCT_NAME: Nightframe
         INFOPLIST_FILE: App/Info.plist
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        CODE_SIGN_ENTITLEMENTS: App/OneShotOneNight.entitlements
+        CODE_SIGN_ENTITLEMENTS: App/Nightframe.entitlements
         SUPPORTS_MACCATALYST: false
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
       configs:
         Debug:
-          CODE_SIGN_ENTITLEMENTS: App/OneShotOneNight.Debug.entitlements
-  AppClip:
-    type: com.apple.product-type.application.on-demand-install-capable
-    platform: iOS
-    sources:
-      - path: AppClip
-      - path: Shared/Theme.swift
-    resources:
-      - path: Shared/Resources
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app.Clip
-        PRODUCT_NAME: OneShotOneNight Clip
-        INFOPLIST_FILE: AppClip/Info.plist
-        CODE_SIGN_ENTITLEMENTS: AppClip/AppClip.entitlements
-        TARGETED_DEVICE_FAMILY: "1"
-        SUPPORTS_MACCATALYST: false
-        SKIP_INSTALL: true
-        APP_CLIP_ASSOCIATED_DOMAIN: example.com
-      configs:
-        Debug:
-          APP_CLIP_TEST_MODE: true
-        Release:
-          APP_CLIP_TEST_MODE: false
-  OneShotOneNightTests:
+          CODE_SIGN_ENTITLEMENTS: App/Nightframe.Debug.entitlements
+  NightframeTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests
     dependencies:
-      - target: OneShotOneNight
+      - target: Nightframe
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.barzibahadin.nightframe.tests
         GENERATE_INFOPLIST_FILE: true
-  OneShotOneNightUITests:
+  NightframeUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
       - path: UITests
     dependencies:
-      - target: OneShotOneNight
+      - target: Nightframe
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.oneshotonenight.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.barzibahadin.nightframe.uitests
         GENERATE_INFOPLIST_FILE: true
-        TEST_TARGET_NAME: OneShotOneNight
+        TEST_TARGET_NAME: Nightframe
 schemes:
-  OneShotOneNight:
+  Nightframe:
     build:
       targets:
-        OneShotOneNight: all
-        OneShotOneNightTests: [test]
-        OneShotOneNightUITests: [test]
+        Nightframe: all
+        NightframeTests: [test]
+        NightframeUITests: [test]
     test:
       targets:
-        - OneShotOneNightTests
-        - OneShotOneNightUITests
+        - NightframeTests
+        - NightframeUITests
     run:
       config: Debug
-    archive:
-      config: Release
-  AppClip:
-    build:
-      targets:
-        AppClip: all
-    run:
-      config: Debug
-      environmentVariables:
-        APP_CLIP_TEST_MODE: "true"
-        _XCAppClipURL: "https://example.com/e/test-event"
     archive:
       config: Release

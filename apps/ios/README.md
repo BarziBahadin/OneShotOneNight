@@ -7,7 +7,7 @@ Native SwiftUI iPhone app with QR scanning.
 ```bash
 cd apps/ios
 xcodegen generate
-open OneShotOneNight.xcodeproj
+open Nightframe.xcodeproj
 ```
 
 Select your Apple Developer team before device testing. Camera capture and QR scanning require a physical iPhone for meaningful verification.

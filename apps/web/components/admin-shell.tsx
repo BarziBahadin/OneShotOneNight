@@ -23,7 +23,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <main className="app-frame">
       <header className="mb-12 flex items-center justify-between gap-4 border-b hairline pb-5">
         <Link to="/admin" className="flex items-center gap-3">
-          <img src="/brand/nightframe-mark-gold.png" alt="" width={80} height={80} decoding="async" className="h-10 w-10 object-contain" aria-hidden="true" />
+          <img src="/brand/nightframe-mark-gold.svg" alt="" width={40} height={40} decoding="async" className="h-10 w-10 object-contain" aria-hidden="true" />
           <div>
             <p className="text-sm font-bold tracking-tight">Nightframe</p>
             <p className="text-xs text-moss">Host studio</p>

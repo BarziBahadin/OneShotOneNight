@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "EE7FBB9E8A4F4A5B9229C0D8"
-               BuildableName = "OneShotOneNight.app"
-               BlueprintName = "OneShotOneNight"
-               ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+               BlueprintIdentifier = "50305758F02D0275DC12989C"
+               BuildableName = "Nightframe.app"
+               BlueprintName = "Nightframe"
+               ReferencedContainer = "container:Nightframe.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -29,10 +29,10 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "7B0407168EEEE7A0926925C2"
-               BuildableName = "OneShotOneNightTests.xctest"
-               BlueprintName = "OneShotOneNightTests"
-               ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+               BlueprintIdentifier = "D1F3CCB9EAB9C4C6BE32E4F9"
+               BuildableName = "NightframeTests.xctest"
+               BlueprintName = "NightframeTests"
+               ReferencedContainer = "container:Nightframe.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -43,10 +43,10 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "3F1B41CEB083BD37E9BA86AB"
-               BuildableName = "OneShotOneNightUITests.xctest"
-               BlueprintName = "OneShotOneNightUITests"
-               ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+               BlueprintIdentifier = "909C208AD010B2806523C389"
+               BuildableName = "NightframeUITests.xctest"
+               BlueprintName = "NightframeUITests"
+               ReferencedContainer = "container:Nightframe.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -60,10 +60,10 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EE7FBB9E8A4F4A5B9229C0D8"
-            BuildableName = "OneShotOneNight.app"
-            BlueprintName = "OneShotOneNight"
-            ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+            BlueprintIdentifier = "50305758F02D0275DC12989C"
+            BuildableName = "Nightframe.app"
+            BlueprintName = "Nightframe"
+            ReferencedContainer = "container:Nightframe.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -72,10 +72,10 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "7B0407168EEEE7A0926925C2"
-               BuildableName = "OneShotOneNightTests.xctest"
-               BlueprintName = "OneShotOneNightTests"
-               ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+               BlueprintIdentifier = "D1F3CCB9EAB9C4C6BE32E4F9"
+               BuildableName = "NightframeTests.xctest"
+               BlueprintName = "NightframeTests"
+               ReferencedContainer = "container:Nightframe.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -83,10 +83,10 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "3F1B41CEB083BD37E9BA86AB"
-               BuildableName = "OneShotOneNightUITests.xctest"
-               BlueprintName = "OneShotOneNightUITests"
-               ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+               BlueprintIdentifier = "909C208AD010B2806523C389"
+               BuildableName = "NightframeUITests.xctest"
+               BlueprintName = "NightframeUITests"
+               ReferencedContainer = "container:Nightframe.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -107,10 +107,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EE7FBB9E8A4F4A5B9229C0D8"
-            BuildableName = "OneShotOneNight.app"
-            BlueprintName = "OneShotOneNight"
-            ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+            BlueprintIdentifier = "50305758F02D0275DC12989C"
+            BuildableName = "Nightframe.app"
+            BlueprintName = "Nightframe"
+            ReferencedContainer = "container:Nightframe.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -126,10 +126,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EE7FBB9E8A4F4A5B9229C0D8"
-            BuildableName = "OneShotOneNight.app"
-            BlueprintName = "OneShotOneNight"
-            ReferencedContainer = "container:OneShotOneNight.xcodeproj">
+            BlueprintIdentifier = "50305758F02D0275DC12989C"
+            BuildableName = "Nightframe.app"
+            BlueprintName = "Nightframe"
+            ReferencedContainer = "container:Nightframe.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

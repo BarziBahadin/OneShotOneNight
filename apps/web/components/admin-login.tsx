@@ -33,7 +33,7 @@ export function AdminLogin() {
         <section className="relative hidden min-h-[620px] overflow-hidden bg-coral p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
           <div className="relative flex items-center gap-3">
-            <img src="/app-icon-192.png" alt="" className="h-11 w-11 rounded-xl object-cover shadow-[0_0_24px_rgba(37,99,235,0.36)]" aria-hidden="true" />
+            <img src="/brand/nightframe_logo_white.svg" alt="" width={44} height={44} className="h-11 w-11 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" aria-hidden="true" />
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/65">Nightframe</p>
           </div>
           <div className="relative">

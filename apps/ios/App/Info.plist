@@ -21,7 +21,7 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>oneshot</string>
+				<string>nightframe</string>
 			</array>
 		</dict>
 	</array>

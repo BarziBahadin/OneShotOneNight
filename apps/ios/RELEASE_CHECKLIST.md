@@ -12,9 +12,9 @@
 ```bash
 cd apps/ios
 xcodegen generate
-xcodebuild -project OneShotOneNight.xcodeproj -scheme OneShotOneNight \
+xcodebuild -project Nightframe.xcodeproj -scheme Nightframe \
   -destination 'platform=iOS Simulator,name=iPhone 17' test
-xcodebuild -project OneShotOneNight.xcodeproj -scheme OneShotOneNight \
+xcodebuild -project Nightframe.xcodeproj -scheme Nightframe \
   -configuration Release -destination 'generic/platform=iOS' archive
 ```
 

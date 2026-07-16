@@ -105,7 +105,7 @@ private final class QRScannerViewController: UIViewController, @preconcurrency A
     // explicitly nonisolated because mutable session lifecycle work is confined
     // to sessionQueue, while callback delivery returns to the main queue.
     private nonisolated let session = AVCaptureSession()
-    private nonisolated let sessionQueue = DispatchQueue(label: "com.oneshotonenight.qr-scanner")
+    private nonisolated let sessionQueue = DispatchQueue(label: "com.barzibahadin.nightframe.qr-scanner")
     private nonisolated(unsafe) let onFailure: (String) -> Void
     private let onFound: (URL) -> Void
     private var previewLayer: AVCaptureVideoPreviewLayer?

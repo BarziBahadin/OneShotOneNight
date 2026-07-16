@@ -27,13 +27,10 @@ enum Theme {
 
 struct NightframeBrandMark: View {
     var body: some View {
-        if let url = Bundle.main.url(forResource: "nightframe-mark-gold", withExtension: "png"),
-           let image = UIImage(contentsOfFile: url.path) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .accessibilityHidden(true)
-        }
+        Image("NightframeMark")
+            .resizable()
+            .scaledToFit()
+            .accessibilityHidden(true)
     }
 }
 

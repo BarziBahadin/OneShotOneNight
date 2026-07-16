@@ -425,7 +425,7 @@ final class CameraController: NSObject, ObservableObject, AVCapturePhotoCaptureD
         position: .back
     ) != nil
     private let output = AVCapturePhotoOutput()
-    private let queue = DispatchQueue(label: "com.oneshotonenight.camera")
+    private let queue = DispatchQueue(label: "com.barzibahadin.nightframe.camera")
 
     override init() {
         super.init()

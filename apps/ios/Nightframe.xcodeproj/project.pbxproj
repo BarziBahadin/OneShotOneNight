@@ -1,0 +1,622 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1B46C97021622BA78F25130F /* SecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61DC81B5B65D5FE6D3C3AA18 /* SecureStore.swift */; };
+		29A2D8D56CFD6FCB0B28DF56 /* PhotoReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D24E6CD2ADB5C30E333F14 /* PhotoReviewView.swift */; };
+		2C80B23876B04BACAA8F2E29 /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3754850C1E48EA95D8C06CE0 /* GalleryView.swift */; };
+		34A528D2AB66BDCF13197B3B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7962375E1974D6323302B3E /* APIClient.swift */; };
+		37293AE9A11FCE6A9C168F9B /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47B42FB82E356D25C442647 /* Diagnostics.swift */; };
+		3D7B14AA7FD8FEA0D2D65C0C /* golden-event.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2EF35E008EAB1EB28A604851 /* golden-event.jpg */; };
+		4E0A96D219EEBC7D785B2619 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE68CF30DA02897465724A1C /* RootView.swift */; };
+		677E87868D35C68948040AFB /* NightframeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83F29A8321AF488D4FAD171D /* NightframeTests.swift */; };
+		67A967D235597A2935FF6C89 /* nightframe-mark-gold.png in Resources */ = {isa = PBXBuildFile; fileRef = 2D4EB087978AC8C7B619E351 /* nightframe-mark-gold.png */; };
+		6AC9A016B292FCF1DF4C02D3 /* NightframeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3002771FA566AD2A6888B79 /* NightframeUITests.swift */; };
+		711E3BB08DE288CC0BFB7132 /* PendingUploadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7729B644EBF32EC36F616EF7 /* PendingUploadStore.swift */; };
+		7F5E024700E53F316E8E1E29 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C75645BF45BACA58792EA63 /* Theme.swift */; };
+		82EE169B194317D66E81DB41 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0674DDBE8B196D552C2F97A3 /* QRScannerView.swift */; };
+		95A06FF23FA0F05401C99DC1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 3616BFC28541294A6BC67C54 /* PrivacyInfo.xcprivacy */; };
+		97FC982E242A1DC3BF3EE615 /* ScanLandingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FE4CF39A4FC5E804957D7C /* ScanLandingView.swift */; };
+		9F722A31E47B1D53B9E0EC14 /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7514273D918A1EE1FBBC0AA /* CameraCaptureView.swift */; };
+		A31B7355FB4B543B0E56B6BE /* GuestEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC56D036C12E232E9F716D5 /* GuestEventView.swift */; };
+		B1FC3843CA568D22FDBF53AD /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60366084A4AB9B7F4220FCE2 /* AppModel.swift */; };
+		BFEB195119DD8F350D570636 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA301D0A655A9D264ABCEB9 /* AppConfiguration.swift */; };
+		CAC8F2BB78DF7CC04E910D75 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4EB63C9667E392BBA1961791 /* Assets.xcassets */; };
+		F7F044AF6ABECCA3ADC8F19D /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461B11E1057483A7D2569317 /* Models.swift */; };
+		F85CFA2B43503C8BBC01A4FE /* NightframeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE623FE4C2B74B9B8CF04B6A /* NightframeApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		9724BE597F627AE3D8119C47 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1603F58C78242E10FB00EE28 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 50305758F02D0275DC12989C;
+			remoteInfo = Nightframe;
+		};
+		E3097DCA0CEFF1E38D6ADD9E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1603F58C78242E10FB00EE28 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 50305758F02D0275DC12989C;
+			remoteInfo = Nightframe;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0674DDBE8B196D552C2F97A3 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		09B56618A27D38A4AA9801A3 /* NightframeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NightframeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1C75645BF45BACA58792EA63 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		2D4EB087978AC8C7B619E351 /* nightframe-mark-gold.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "nightframe-mark-gold.png"; sourceTree = "<group>"; };
+		2EF35E008EAB1EB28A604851 /* golden-event.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "golden-event.jpg"; sourceTree = "<group>"; };
+		3616BFC28541294A6BC67C54 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		3754850C1E48EA95D8C06CE0 /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
+		3B1C444F0C4284CBD1048086 /* Nightframe.Debug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nightframe.Debug.entitlements; sourceTree = "<group>"; };
+		424F3D48D107E3B07E75AA4E /* Nightframe.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Nightframe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		461B11E1057483A7D2569317 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		4EB63C9667E392BBA1961791 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		60366084A4AB9B7F4220FCE2 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		61DC81B5B65D5FE6D3C3AA18 /* SecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureStore.swift; sourceTree = "<group>"; };
+		7729B644EBF32EC36F616EF7 /* PendingUploadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadStore.swift; sourceTree = "<group>"; };
+		83F29A8321AF488D4FAD171D /* NightframeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightframeTests.swift; sourceTree = "<group>"; };
+		882576BEF93C2478791F08E7 /* NightframeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NightframeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		88FE4CF39A4FC5E804957D7C /* ScanLandingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanLandingView.swift; sourceTree = "<group>"; };
+		8EA301D0A655A9D264ABCEB9 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		AE68CF30DA02897465724A1C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		B6D24E6CD2ADB5C30E333F14 /* PhotoReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoReviewView.swift; sourceTree = "<group>"; };
+		B7962375E1974D6323302B3E /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		D3002771FA566AD2A6888B79 /* NightframeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightframeUITests.swift; sourceTree = "<group>"; };
+		D4CD43553D6C5487979DAFA7 /* Nightframe.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nightframe.entitlements; sourceTree = "<group>"; };
+		D7514273D918A1EE1FBBC0AA /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCaptureView.swift; sourceTree = "<group>"; };
+		E47B42FB82E356D25C442647 /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
+		EEC56D036C12E232E9F716D5 /* GuestEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestEventView.swift; sourceTree = "<group>"; };
+		F2E60FC2133C47836A7A9F2E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		FE623FE4C2B74B9B8CF04B6A /* NightframeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightframeApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		039190E61B886EA4DFA5A098 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				4EB63C9667E392BBA1961791 /* Assets.xcassets */,
+				F2E60FC2133C47836A7A9F2E /* Info.plist */,
+				3B1C444F0C4284CBD1048086 /* Nightframe.Debug.entitlements */,
+				D4CD43553D6C5487979DAFA7 /* Nightframe.entitlements */,
+				FE623FE4C2B74B9B8CF04B6A /* NightframeApp.swift */,
+				3616BFC28541294A6BC67C54 /* PrivacyInfo.xcprivacy */,
+				0674DDBE8B196D552C2F97A3 /* QRScannerView.swift */,
+				AE68CF30DA02897465724A1C /* RootView.swift */,
+				88FE4CF39A4FC5E804957D7C /* ScanLandingView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		04B470F4DC8677459C32DAC1 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				83F29A8321AF488D4FAD171D /* NightframeTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		2BE658B27D9A6F428A501E19 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				D3002771FA566AD2A6888B79 /* NightframeUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+		2E99CD49FF4B997015AF791F /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				B7962375E1974D6323302B3E /* APIClient.swift */,
+				8EA301D0A655A9D264ABCEB9 /* AppConfiguration.swift */,
+				60366084A4AB9B7F4220FCE2 /* AppModel.swift */,
+				D7514273D918A1EE1FBBC0AA /* CameraCaptureView.swift */,
+				E47B42FB82E356D25C442647 /* Diagnostics.swift */,
+				3754850C1E48EA95D8C06CE0 /* GalleryView.swift */,
+				EEC56D036C12E232E9F716D5 /* GuestEventView.swift */,
+				461B11E1057483A7D2569317 /* Models.swift */,
+				7729B644EBF32EC36F616EF7 /* PendingUploadStore.swift */,
+				B6D24E6CD2ADB5C30E333F14 /* PhotoReviewView.swift */,
+				61DC81B5B65D5FE6D3C3AA18 /* SecureStore.swift */,
+				1C75645BF45BACA58792EA63 /* Theme.swift */,
+				5D14EA352349EF23BD04C436 /* Resources */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		5D14EA352349EF23BD04C436 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2EF35E008EAB1EB28A604851 /* golden-event.jpg */,
+				2D4EB087978AC8C7B619E351 /* nightframe-mark-gold.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		8D3E8F11388152256FD8328C = {
+			isa = PBXGroup;
+			children = (
+				039190E61B886EA4DFA5A098 /* App */,
+				2E99CD49FF4B997015AF791F /* Shared */,
+				04B470F4DC8677459C32DAC1 /* Tests */,
+				2BE658B27D9A6F428A501E19 /* UITests */,
+				9D9AFD93CCAE00F8C2DCA39C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9D9AFD93CCAE00F8C2DCA39C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				424F3D48D107E3B07E75AA4E /* Nightframe.app */,
+				09B56618A27D38A4AA9801A3 /* NightframeTests.xctest */,
+				882576BEF93C2478791F08E7 /* NightframeUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		50305758F02D0275DC12989C /* Nightframe */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB620B03D99EA28DEB296879 /* Build configuration list for PBXNativeTarget "Nightframe" */;
+			buildPhases = (
+				A2A9E1D556445A6B233AA8B4 /* Sources */,
+				535C961A128ED5DA6614F74B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Nightframe;
+			packageProductDependencies = (
+			);
+			productName = Nightframe;
+			productReference = 424F3D48D107E3B07E75AA4E /* Nightframe.app */;
+			productType = "com.apple.product-type.application";
+		};
+		909C208AD010B2806523C389 /* NightframeUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 26F99213B74C699D270D6CDC /* Build configuration list for PBXNativeTarget "NightframeUITests" */;
+			buildPhases = (
+				4CF40E84828ECA9706F3C225 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9F8F578C9AB27FD9E9E8A869 /* PBXTargetDependency */,
+			);
+			name = NightframeUITests;
+			packageProductDependencies = (
+			);
+			productName = NightframeUITests;
+			productReference = 882576BEF93C2478791F08E7 /* NightframeUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		D1F3CCB9EAB9C4C6BE32E4F9 /* NightframeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0987CB5EF55BEF6D9C743A7 /* Build configuration list for PBXNativeTarget "NightframeTests" */;
+			buildPhases = (
+				CD27FDCBCE062A80E4915245 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				67528DCDC03ABBC333850BCA /* PBXTargetDependency */,
+			);
+			name = NightframeTests;
+			packageProductDependencies = (
+			);
+			productName = NightframeTests;
+			productReference = 09B56618A27D38A4AA9801A3 /* NightframeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1603F58C78242E10FB00EE28 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					50305758F02D0275DC12989C = {
+						DevelopmentTeam = 7B5U63YN3A;
+						ProvisioningStyle = Automatic;
+					};
+					909C208AD010B2806523C389 = {
+						DevelopmentTeam = 7B5U63YN3A;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 50305758F02D0275DC12989C;
+					};
+					D1F3CCB9EAB9C4C6BE32E4F9 = {
+						DevelopmentTeam = 7B5U63YN3A;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 75B9357654EC8DB18ECC665D /* Build configuration list for PBXProject "Nightframe" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8D3E8F11388152256FD8328C;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9D9AFD93CCAE00F8C2DCA39C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				50305758F02D0275DC12989C /* Nightframe */,
+				D1F3CCB9EAB9C4C6BE32E4F9 /* NightframeTests */,
+				909C208AD010B2806523C389 /* NightframeUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		535C961A128ED5DA6614F74B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CAC8F2BB78DF7CC04E910D75 /* Assets.xcassets in Resources */,
+				95A06FF23FA0F05401C99DC1 /* PrivacyInfo.xcprivacy in Resources */,
+				3D7B14AA7FD8FEA0D2D65C0C /* golden-event.jpg in Resources */,
+				67A967D235597A2935FF6C89 /* nightframe-mark-gold.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4CF40E84828ECA9706F3C225 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6AC9A016B292FCF1DF4C02D3 /* NightframeUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A2A9E1D556445A6B233AA8B4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				34A528D2AB66BDCF13197B3B /* APIClient.swift in Sources */,
+				BFEB195119DD8F350D570636 /* AppConfiguration.swift in Sources */,
+				B1FC3843CA568D22FDBF53AD /* AppModel.swift in Sources */,
+				9F722A31E47B1D53B9E0EC14 /* CameraCaptureView.swift in Sources */,
+				37293AE9A11FCE6A9C168F9B /* Diagnostics.swift in Sources */,
+				2C80B23876B04BACAA8F2E29 /* GalleryView.swift in Sources */,
+				A31B7355FB4B543B0E56B6BE /* GuestEventView.swift in Sources */,
+				F7F044AF6ABECCA3ADC8F19D /* Models.swift in Sources */,
+				F85CFA2B43503C8BBC01A4FE /* NightframeApp.swift in Sources */,
+				711E3BB08DE288CC0BFB7132 /* PendingUploadStore.swift in Sources */,
+				29A2D8D56CFD6FCB0B28DF56 /* PhotoReviewView.swift in Sources */,
+				82EE169B194317D66E81DB41 /* QRScannerView.swift in Sources */,
+				4E0A96D219EEBC7D785B2619 /* RootView.swift in Sources */,
+				97FC982E242A1DC3BF3EE615 /* ScanLandingView.swift in Sources */,
+				1B46C97021622BA78F25130F /* SecureStore.swift in Sources */,
+				7F5E024700E53F316E8E1E29 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD27FDCBCE062A80E4915245 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				677E87868D35C68948040AFB /* NightframeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		67528DCDC03ABBC333850BCA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 50305758F02D0275DC12989C /* Nightframe */;
+			targetProxy = 9724BE597F627AE3D8119C47 /* PBXContainerItemProxy */;
+		};
+		9F8F578C9AB27FD9E9E8A869 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 50305758F02D0275DC12989C /* Nightframe */;
+			targetProxy = E3097DCA0CEFF1E38D6ADD9E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		10BEC1966EA2D8B223642C81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.barzibahadin.nightframe.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nightframe.app/Nightframe";
+			};
+			name = Debug;
+		};
+		1536B44A0BE9449957F5C777 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.barzibahadin.nightframe.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nightframe.app/Nightframe";
+			};
+			name = Release;
+		};
+		3C7324CF5E01FEEF79764D60 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				API_BASE_URL = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 7B5U63YN3A;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PUBLIC_WEB_URL = "https://one-shot-one-night.vercel.app";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		47A71ABF26B7F8006F5C1A05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				API_BASE_URL = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7B5U63YN3A;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PUBLIC_WEB_URL = "https://one-shot-one-night.vercel.app";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		6C7627FCBE8A053F348BCD9B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/Nightframe.Debug.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.barzibahadin.nightframe;
+				PRODUCT_NAME = Nightframe;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		7331C972018C6678258F2FE3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/Nightframe.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.barzibahadin.nightframe;
+				PRODUCT_NAME = Nightframe;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		93E4C4E48B997437B7AD6F24 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.barzibahadin.nightframe.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Nightframe;
+			};
+			name = Release;
+		};
+		BE4F0516851394E238DDC62C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.barzibahadin.nightframe.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Nightframe;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		26F99213B74C699D270D6CDC /* Build configuration list for PBXNativeTarget "NightframeUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE4F0516851394E238DDC62C /* Debug */,
+				93E4C4E48B997437B7AD6F24 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		75B9357654EC8DB18ECC665D /* Build configuration list for PBXProject "Nightframe" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47A71ABF26B7F8006F5C1A05 /* Debug */,
+				3C7324CF5E01FEEF79764D60 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AB620B03D99EA28DEB296879 /* Build configuration list for PBXNativeTarget "Nightframe" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6C7627FCBE8A053F348BCD9B /* Debug */,
+				7331C972018C6678258F2FE3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C0987CB5EF55BEF6D9C743A7 /* Build configuration list for PBXNativeTarget "NightframeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10BEC1966EA2D8B223642C81 /* Debug */,
+				1536B44A0BE9449957F5C777 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1603F58C78242E10FB00EE28 /* Project object */;
+}

@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct OneShotOneNightApp: App {
+struct NightframeApp: App {
     @State private var appModel = AppModel()
 
     var body: some Scene {
@@ -16,4 +16,3 @@ struct OneShotOneNightApp: App {
         }
     }
 }
-

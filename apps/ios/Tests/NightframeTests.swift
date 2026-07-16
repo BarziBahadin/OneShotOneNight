@@ -1,7 +1,7 @@
 import XCTest
-@testable import OneShotOneNight
+@testable import Nightframe
 
-final class OneShotOneNightTests: XCTestCase {
+final class NightframeTests: XCTestCase {
     func testParsesCurrentGuestLink() throws {
         let invitation = try XCTUnwrap(EventInvitation(url: URL(string: "https://example.com/guest/summer-night?t=secret")!))
         XCTAssertEqual(invitation.slug, "summer-night")
