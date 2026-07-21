@@ -44,6 +44,7 @@ final class NightframeTests: XCTestCase {
         {
             "id":"photo-1",
             "object_key":"events/1/photo.jpg",
+            "guest_name":"Dani",
             "public_url":"https://example.com/photo.jpg",
             "thumbnail_url":"https://example.com/thumb.jpg",
             "preview_url":"https://example.com/preview.jpg",
@@ -57,6 +58,7 @@ final class NightframeTests: XCTestCase {
         """#.utf8))
 
         XCTAssertEqual(photo.publicURL, "https://example.com/photo.jpg")
+        XCTAssertEqual(photo.guestName, "Dani")
         XCTAssertEqual(photo.thumbnailURL, "https://example.com/thumb.jpg")
         XCTAssertEqual(photo.previewURL, "https://example.com/preview.jpg")
     }
@@ -77,7 +79,7 @@ final class NightframeTests: XCTestCase {
         EventRecord(id: "1", slug: "event", name: "Event", description: "", mode: "delayed_reveal", status: status,
                     startsAt: startsAt, endsAt: endsAt, revealAt: endsAt, maxGuests: 10, maxPhotosPerGuest: 12,
                     allowGalleryUploads: true, preferCameraCapture: true, allowImmediateGallery: false,
-                    autoApprovePhotos: true, offlineUploadGraceHours: 24)
+                    autoApprovePhotos: true, offlineUploadGraceHours: 24, coverURL: nil)
     }
 
     private func iso(_ date: Date) -> String { ISO8601DateFormatter().string(from: date) }

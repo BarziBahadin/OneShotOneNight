@@ -39,6 +39,7 @@ extension EventRecord {
 struct PhotoRecord: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let objectKey: String
+    let guestName: String?
     let publicURL: String?
     let thumbnailURL: String?
     let previewURL: String?
@@ -52,6 +53,7 @@ struct PhotoRecord: Codable, Identifiable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id
         case objectKey
+        case guestName
         case publicURL = "publicUrl"
         case thumbnailURL = "thumbnailUrl"
         case previewURL = "previewUrl"

@@ -15,7 +15,14 @@ struct GalleryView: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            EventBackdropImage(url: model.event?.coverURL)
+                .ignoresSafeArea()
+                .scaleEffect(1.12)
+                .blur(radius: 18)
+                .opacity(0.3)
+
+            Color.black.opacity(0.74).ignoresSafeArea()
+
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 28) {
                     header
@@ -71,29 +78,34 @@ struct GalleryView: View {
     }
 
     private var actions: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) { actionButtons }
-            VStack(spacing: 10) { actionButtons }
-        }
-    }
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
+            spacing: 10
+        ) {
+            ShareLink(item: model.invitation.sourceURL) {
+                GalleryActionLabel(title: "Export", systemImage: "square.and.arrow.up")
+            }
+            .accessibilityLabel("Export party film")
 
-    @ViewBuilder private var actionButtons: some View {
-        ShareLink(item: model.invitation.sourceURL) {
-            Label("Export", systemImage: "square.and.arrow.up")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 58)
-                .background(Theme.surfaceElevated, in: Capsule())
-        }
-        .accessibilityLabel("Export party film")
-
-        SecondaryCapsuleButton(title: "Invite", systemImage: "qrcode") { isInvitePresented = true }
+            Button { isInvitePresented = true } label: {
+                GalleryActionLabel(title: "Invite", systemImage: "qrcode")
+            }
+            .buttonStyle(.plain)
             .accessibilityLabel("Invite guests")
             .accessibilityHint("Double tap to show the invitation QR code")
 
-        PrimaryCapsuleButton(title: "Camera", systemImage: "camera.fill") {
-            dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { model.showsCamera = true }
+            Button {
+                dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { model.showsCamera = true }
+            } label: {
+                GalleryActionLabel(
+                    title: "Camera",
+                    systemImage: "camera.fill",
+                    foreground: .black,
+                    background: .white
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -142,6 +154,25 @@ struct GalleryView: View {
         guard let revealDate = model.event?.revealDate else { return "Revealing soon" }
         let hours = max(Int(revealDate.timeIntervalSinceNow / 3_600), 0)
         return hours > 0 ? "\(hours) hours left" : "Revealed"
+    }
+}
+
+private struct GalleryActionLabel: View {
+    let title: String
+    let systemImage: String
+    var foreground: Color = .white
+    var background: Color = Theme.surfaceElevated
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.system(size: 16, weight: .semibold))
+            .minimumScaleFactor(0.78)
+            .lineLimit(1)
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 64)
+            .background(background, in: Capsule())
+            .contentShape(Capsule())
     }
 }
 
@@ -244,9 +275,8 @@ struct PhotoViewerView: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            PartyRemoteImage(photo: photo, contentMode: .fit)
+            PartyRemoteImage(photo: photo, contentMode: .fit, usesFullResolution: true)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.vertical, 96)
 
             VStack {
                 HStack {
@@ -301,9 +331,10 @@ struct PhotoViewerView: View {
 private struct PartyRemoteImage: View {
     let photo: PhotoRecord
     let contentMode: ContentMode
+    var usesFullResolution = false
 
     var body: some View {
-        if let url = photo.imageURL {
+        if let url = usesFullResolution ? photo.fullResolutionURL : photo.thumbnailImageURL {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case let .success(image):
@@ -359,12 +390,19 @@ private struct QRCodeView: View {
 
 private extension PhotoRecord {
     var photographerName: String {
-        guard let message, !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "Guest" }
-        return message
+        guard let guestName, !guestName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "Guest" }
+        return guestName
     }
 
-    var imageURL: URL? {
+    var thumbnailImageURL: URL? {
         [thumbnailURL, previewURL, publicURL]
+            .compactMap { $0 }
+            .compactMap(URL.init(string:))
+            .first
+    }
+
+    var fullResolutionURL: URL? {
+        [publicURL, previewURL, thumbnailURL]
             .compactMap { $0 }
             .compactMap(URL.init(string:))
             .first
@@ -386,12 +424,13 @@ private enum PartyFilmPreviewData {
         return PhotoRecord(
             id: "preview-photo",
             objectKey: "preview/event-background.jpg",
+            guestName: "Yebin",
             publicURL: localURL,
             thumbnailURL: localURL,
             previewURL: localURL,
             contentType: "image/jpeg",
             sizeBytes: 1,
-            message: "Yebin",
+            message: "",
             status: "approved",
             isDeveloped: true,
             createdAt: "2026-07-02T18:00:00Z"
