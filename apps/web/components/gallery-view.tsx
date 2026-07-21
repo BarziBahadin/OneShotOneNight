@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Calendar, Camera, ChevronLeft, ChevronRight, Download, Grid3X3, Heart, Images, MapPin, QrCode, Share2, Users, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Download, Grid3X3, Heart, Images, MapPin, QrCode, Share2, Users, X } from "lucide-react";
 import { EventRecord, guestGallery, guestURL, PhotoRecord, rememberGuestAccessToken, storedGuestAccessToken } from "@/lib/api";
 
 type GalleryMode = "classic" | "album";
@@ -101,9 +101,9 @@ export function GalleryView({ slug, accessToken }: { slug: string; accessToken: 
   return (
     <>
       {mode === "album" ? (
-        <AlbumGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} slug={slug} hasMore={Boolean(nextCursor)} loadingMore={loadingMore} onLoadMore={loadMore} onClassicView={() => setMode("classic")} onShareQR={() => setShowQR(true)} />
+        <AlbumGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} hasMore={Boolean(nextCursor)} loadingMore={loadingMore} onLoadMore={loadMore} onClassicView={() => setMode("classic")} onShareQR={() => setShowQR(true)} />
       ) : (
-        <ClassicGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} slug={slug} hasMore={Boolean(nextCursor)} loadingMore={loadingMore} onLoadMore={loadMore} onAlbumView={() => setMode("album")} onShareQR={() => setShowQR(true)} />
+        <ClassicGalleryView event={event} photos={visiblePhotos} status={status} locked={locked} hasMore={Boolean(nextCursor)} loadingMore={loadingMore} onLoadMore={loadMore} onAlbumView={() => setMode("album")} onShareQR={() => setShowQR(true)} />
       )}
 
       {showQR ? (
@@ -145,7 +145,6 @@ function ClassicGalleryView({
   photos,
   status,
   locked,
-  slug,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -156,7 +155,6 @@ function ClassicGalleryView({
   photos: PhotoRecord[];
   status: string;
   locked: boolean;
-  slug: string;
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
@@ -165,13 +163,13 @@ function ClassicGalleryView({
 }) {
   return (
     <main className="relative min-h-[100svh] overflow-x-hidden bg-[#030303] text-white">
-      <img src="/pics/golden-event-640.webp" alt="" width="640" height="960" decoding="async" className="fixed inset-0 h-full w-full scale-105 object-cover opacity-35 blur-sm" />
+      <img src={event?.cover_url || "/pics/golden-event-640.webp"} alt="" width="640" height="960" decoding="async" className="fixed inset-0 h-full w-full scale-105 object-cover opacity-35 blur-sm" />
       <div className="fixed inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.72),rgba(0,0,0,0.25)_34%,rgba(0,0,0,0.98))]" />
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-5xl flex-col px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between gap-3">
-          <a href={`/guest/${slug}`} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 backdrop-blur" aria-label="Back to camera">
-            <ArrowLeft className="h-5 w-5" />
+          <a href="/" className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-[0.9rem] border border-white/10 bg-black/45 shadow-xl backdrop-blur" aria-label="Nightframe home">
+            <img src="/app-icon-192.png" alt="" width="48" height="48" className="h-full w-full object-cover" />
           </a>
           <div className="flex gap-2">
             <button type="button" onClick={onAlbumView} className="flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white px-4 text-sm font-bold text-black shadow-xl" aria-label="Open memory album view">
@@ -180,9 +178,6 @@ function ClassicGalleryView({
             <button type="button" onClick={onShareQR} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 backdrop-blur" aria-label="Share QR code">
               <QrCode className="h-5 w-5" />
             </button>
-            <a href={`/guest/${slug}`} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white text-black shadow-xl" aria-label="Open camera">
-              <Camera className="h-5 w-5" />
-            </a>
           </div>
         </div>
 
@@ -212,7 +207,7 @@ function ClassicGalleryView({
           ) : null}
 
           {status ? (
-            <LockedOrEmptyState locked={locked} message={status} cameraHref={`/guest/${slug}`} />
+            <LockedOrEmptyState locked={locked} message={status} />
           ) : (
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {photos.map((photo, index) => (
@@ -247,7 +242,6 @@ function AlbumGalleryView({
   photos,
   status,
   locked,
-  slug,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -258,7 +252,6 @@ function AlbumGalleryView({
   photos: PhotoRecord[];
   status: string;
   locked: boolean;
-  slug: string;
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
@@ -312,8 +305,8 @@ function AlbumGalleryView({
 
       <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-14 pt-[max(1rem,env(safe-area-inset-top))] sm:px-7 lg:px-10">
         <nav className="flex items-center justify-between gap-3">
-          <a href={`/guest/${slug}`} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#7b5731]/15 bg-white/65 text-[#3a2a1b] shadow-[0_14px_36px_rgba(95,61,26,0.13)] backdrop-blur" aria-label="Back to camera">
-            <ArrowLeft className="h-5 w-5" />
+          <a href="/" className="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-[0.85rem] border border-[#7b5731]/15 bg-white/65 shadow-[0_14px_36px_rgba(95,61,26,0.13)] backdrop-blur" aria-label="Nightframe home">
+            <img src="/app-icon-192.png" alt="" width="44" height="44" className="h-full w-full object-cover" />
           </a>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onClassicView} className="inline-flex h-11 items-center gap-2 rounded-full border border-[#7b5731]/15 bg-white/75 px-4 text-sm font-bold text-[#3a2a1b] shadow-[0_14px_36px_rgba(95,61,26,0.13)] backdrop-blur" aria-label="Open classic gallery view">
@@ -364,6 +357,13 @@ function AlbumHero({ event, dateLabel, location, attendeeCount, hostName }: { ev
       </div>
       <h1 className="mx-auto max-w-4xl text-5xl font-semibold leading-[0.94] text-[#332315] sm:text-7xl lg:text-8xl">{event?.name ?? "Memory Album"}</h1>
       <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[#76583d] sm:text-lg">A little gallery of big memories.</p>
+      <div className="mx-auto mt-7 aspect-[16/9] max-w-4xl overflow-hidden rounded-[2rem] border border-[#7b5731]/15 bg-[#eadcc9] p-2 shadow-[0_24px_65px_rgba(77,47,20,0.2)]">
+        <img
+          src={event?.cover_url || "/pics/golden-event-640.webp"}
+          alt={event ? `${event.name} album cover` : "Event album cover"}
+          className="h-full w-full rounded-[1.5rem] object-cover"
+        />
+      </div>
       <div className="mx-auto mt-7 grid max-w-4xl grid-cols-1 gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
         <MetaPill icon={<Calendar className="h-4 w-4" />} label="Date" value={dateLabel} />
         <MetaPill icon={<MapPin className="h-4 w-4" />} label="Location" value={location} />
@@ -572,13 +572,12 @@ function AlbumEmptyState({ locked, message }: { locked: boolean; message: string
   );
 }
 
-function LockedOrEmptyState({ locked, message, cameraHref }: { locked: boolean; message: string; cameraHref: string }) {
+function LockedOrEmptyState({ locked, message }: { locked: boolean; message: string }) {
   return (
     <div className="mx-auto mt-8 grid max-w-md justify-items-center rounded-[2rem] border border-white/10 bg-white/[0.05] px-5 py-8 text-center">
       <QrCode className="h-8 w-8 text-white/45" />
-      <h2 className="mt-4 text-3xl font-semibold">{locked ? "Film is developing" : "Be the first to capture a moment."}</h2>
-      <p className="mt-3 text-sm leading-6 text-white/55">{locked ? "Photos are sealed until the reveal. Come back when the album unlocks." : message || "Grab your camera and start shooting!"}</p>
-      <a href={cameraHref} className="mt-5 rounded-full bg-white px-6 py-3 text-sm font-bold text-black">Open Camera</a>
+      <h2 className="mt-4 text-3xl font-semibold">{locked ? "Film is developing" : "No memories here yet"}</h2>
+      <p className="mt-3 text-sm leading-6 text-white/55">{locked ? "Photos are sealed until the reveal. Come back when the album unlocks." : message || "Photos uploaded from the Nightframe phone app will appear here."}</p>
     </div>
   );
 }

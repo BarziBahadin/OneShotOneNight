@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LockKeyhole } from "lucide-react";
+import { Button } from "@/components/base/buttons/button";
+import { Input } from "@/components/base/input/input";
 import { adminLogin } from "@/lib/api";
 
 export function AdminLogin() {
@@ -33,7 +35,7 @@ export function AdminLogin() {
         <section className="relative hidden min-h-[620px] overflow-hidden bg-coral p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
           <div className="relative flex items-center gap-3">
-            <img src="/brand/nightframe_logo_white.svg" alt="" width={44} height={44} className="h-11 w-11 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" aria-hidden="true" />
+            <img src="/app-icon-192.png" alt="" width={44} height={44} className="h-11 w-11 rounded-xl object-cover drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" aria-hidden="true" />
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/65">Nightframe</p>
           </div>
           <div className="relative">
@@ -51,14 +53,11 @@ export function AdminLogin() {
             <h1 className="mt-1 text-3xl font-semibold">Welcome back.</h1>
           </div>
         </div>
-        <label className="grid gap-2 text-sm font-semibold">
-          Password
-          <input name="password" type="password" autoComplete="current-password" className="field" />
-        </label>
+        <Input label="Password" name="password" type="password" autoComplete="current-password" isRequired size="md" />
         {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-        <button disabled={busy} className="btn-primary min-h-12 px-5 py-3">
+        <Button type="submit" size="md" isDisabled={busy} isLoading={busy} showTextWhileLoading>
           {busy ? "Signing in..." : "Sign in"}
-        </button>
+        </Button>
         </form>
       </div>
     </main>

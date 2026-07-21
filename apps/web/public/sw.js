@@ -1,13 +1,10 @@
-const VERSION = "nightframe-v13";
+const VERSION = "nightframe-v14";
 const APP_SHELL_CACHE = `${VERSION}-app-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/brand/nightframe-mark-gold.svg",
-  "/brand/nightframe_logo_white.svg",
-  "/brand/nightframe_logo_black_white.svg",
   "/app-icon-192.png",
   "/favicon-32.png"
 ];

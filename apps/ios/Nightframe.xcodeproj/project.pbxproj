@@ -12,7 +12,7 @@
 		2C80B23876B04BACAA8F2E29 /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3754850C1E48EA95D8C06CE0 /* GalleryView.swift */; };
 		34A528D2AB66BDCF13197B3B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7962375E1974D6323302B3E /* APIClient.swift */; };
 		37293AE9A11FCE6A9C168F9B /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47B42FB82E356D25C442647 /* Diagnostics.swift */; };
-		3D7B14AA7FD8FEA0D2D65C0C /* golden-event.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2EF35E008EAB1EB28A604851 /* golden-event.jpg */; };
+		3D7B14AA7FD8FEA0D2D65C0C /* event-background.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2EF35E008EAB1EB28A604851 /* event-background.jpg */; };
 		4E0A96D219EEBC7D785B2619 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE68CF30DA02897465724A1C /* RootView.swift */; };
 		677E87868D35C68948040AFB /* NightframeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83F29A8321AF488D4FAD171D /* NightframeTests.swift */; };
 		67A967D235597A2935FF6C89 /* nightframe-mark-gold.png in Resources */ = {isa = PBXBuildFile; fileRef = 2D4EB087978AC8C7B619E351 /* nightframe-mark-gold.png */; };
@@ -53,7 +53,7 @@
 		09B56618A27D38A4AA9801A3 /* NightframeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NightframeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C75645BF45BACA58792EA63 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2D4EB087978AC8C7B619E351 /* nightframe-mark-gold.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "nightframe-mark-gold.png"; sourceTree = "<group>"; };
-		2EF35E008EAB1EB28A604851 /* golden-event.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "golden-event.jpg"; sourceTree = "<group>"; };
+		2EF35E008EAB1EB28A604851 /* event-background.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "event-background.jpg"; sourceTree = "<group>"; };
 		3616BFC28541294A6BC67C54 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3754850C1E48EA95D8C06CE0 /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
 		3B1C444F0C4284CBD1048086 /* Nightframe.Debug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nightframe.Debug.entitlements; sourceTree = "<group>"; };
@@ -135,7 +135,7 @@
 		5D14EA352349EF23BD04C436 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				2EF35E008EAB1EB28A604851 /* golden-event.jpg */,
+				2EF35E008EAB1EB28A604851 /* event-background.jpg */,
 				2D4EB087978AC8C7B619E351 /* nightframe-mark-gold.png */,
 			);
 			path = Resources;
@@ -271,7 +271,7 @@
 			files = (
 				CAC8F2BB78DF7CC04E910D75 /* Assets.xcassets in Resources */,
 				95A06FF23FA0F05401C99DC1 /* PrivacyInfo.xcprivacy in Resources */,
-				3D7B14AA7FD8FEA0D2D65C0C /* golden-event.jpg in Resources */,
+				3D7B14AA7FD8FEA0D2D65C0C /* event-background.jpg in Resources */,
 				67A967D235597A2935FF6C89 /* nightframe-mark-gold.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

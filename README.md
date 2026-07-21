@@ -9,8 +9,19 @@ Guests scan a static event QR code, open a private web guest page, take or choos
 ## Stack
 
 - `apps/web`: Vite, React, React Router, TypeScript, Tailwind CSS, PWA metadata, service worker.
+- `apps/ios`: Native SwiftUI iPhone application and its bundled resources.
 - `supabase/functions/api`: Supabase Edge Function containing the application API and business logic.
 - `supabase`: Postgres schema, RLS, server configuration, and private Storage bucket.
+
+## Repository Layout
+
+- `apps/`: Deployable web and iOS applications. Runtime images stay with the app that bundles or serves them.
+- `docs/design/`: Brand concepts, mockups, and visual QA references.
+- `docs/testing/`: QR fixtures used for manual testing.
+- `supabase/`: Database migrations, tests, configuration, and Edge Functions.
+- `tmp/`: Ignored generated previews and local scratch artifacts.
+
+Only project configuration, environment templates, documentation entry points, and developer commands belong in the repository root.
 
 ## Local Setup
 

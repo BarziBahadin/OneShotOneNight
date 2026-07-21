@@ -39,7 +39,7 @@
   --destructive-foreground: 0 0% 100%;
   --border: 30 8% 22%;
   --input: 30 8% 24%;
-  --ring: 35 49% 61%;
+  --ring: 216 45% 36%;
   --radius: 1.25rem;
   --ink: hsl(var(--foreground));
   --paper: hsl(var(--card));
@@ -96,6 +96,15 @@ input::placeholder, textarea::placeholder {
 :focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
+}
+
+/* Untitled UI draws focus on the rounded field wrapper. Prevent a second,
+   square browser outline from appearing on the control inside it. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="spinbutton"]:focus-visible {
+  outline: none;
 }
 
 .shadow-sm {
@@ -171,7 +180,7 @@ input::placeholder, textarea::placeholder {
   }
 
   .field:focus {
-    border-color: hsl(var(--accent) / 0.7);
+    border-color: hsl(var(--ring));
     background: hsl(var(--foreground) / 0.055);
   }
 

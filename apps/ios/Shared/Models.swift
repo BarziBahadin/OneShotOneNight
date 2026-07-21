@@ -17,6 +17,7 @@ struct EventRecord: Codable, Hashable, Sendable {
     let allowImmediateGallery: Bool
     let autoApprovePhotos: Bool
     let offlineUploadGraceHours: Int
+    let coverURL: URL?
 
     var revealDate: Date { ServerDate.parse(revealAt) ?? .now }
     var startDate: Date { ServerDate.parse(startsAt) ?? .now }
@@ -29,7 +30,8 @@ extension EventRecord {
         description: "Share the evening from your point of view.", mode: "live_gallery", status: "open",
         startsAt: "2026-07-02T18:00:00Z", endsAt: "2026-07-03T00:00:00Z", revealAt: "2026-07-02T18:00:00Z",
         maxGuests: 250, maxPhotosPerGuest: 49, allowGalleryUploads: true, preferCameraCapture: true,
-        allowImmediateGallery: true, autoApprovePhotos: true, offlineUploadGraceHours: 24
+        allowImmediateGallery: true, autoApprovePhotos: true, offlineUploadGraceHours: 24,
+        coverURL: nil
     )
 }
 #endif

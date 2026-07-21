@@ -5,6 +5,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { adminEvents, AdminEventSummary } from "@/lib/api";
 import { AdminShell } from "@/components/admin-shell";
+import { Button } from "@/components/base/buttons/button";
+import { Input } from "@/components/base/input/input";
+import { NativeSelect } from "@/components/base/select/select-native";
 
 export function AdminEvents() {
   const navigate = useNavigate();
@@ -38,17 +41,20 @@ export function AdminEvents() {
   return (
     <AdminShell>
       <form onSubmit={onSubmit} className="surface mb-5 flex flex-wrap gap-2 p-3">
-        <input name="q" placeholder="Search events" className="field min-w-0 flex-1" />
-        <select name="status" className="field">
-          <option value="">All statuses</option>
-          <option value="upcoming">Upcoming</option>
-          <option value="open">Open</option>
-          <option value="locked">Locked</option>
-          <option value="deleted">Deleted</option>
-        </select>
-        <button className="btn-dark px-4 py-2">
-          <Search className="h-4 w-4" /> Search
-        </button>
+        <Input name="q" placeholder="Search events" aria-label="Search events" className="min-w-52 flex-1" />
+        <NativeSelect
+          name="status"
+          aria-label="Event status"
+          className="w-auto min-w-40"
+          options={[
+            { value: "", label: "All statuses" },
+            { value: "upcoming", label: "Upcoming" },
+            { value: "open", label: "Open" },
+            { value: "locked", label: "Locked" },
+            { value: "deleted", label: "Deleted" }
+          ]}
+        />
+        <Button type="submit" color="secondary" size="md" iconLeading={Search}>Search</Button>
       </form>
       {status ? <p className="surface px-4 py-3 text-ink/70">{status}</p> : null}
       <div className="grid gap-3">

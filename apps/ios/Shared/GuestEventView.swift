@@ -50,6 +50,8 @@ struct PartyFilmRootView: View {
                 invitationURL: model.invitation.sourceURL,
                 isUploading: model.isUploading,
                 uploadWarning: model.uploadError,
+                coverURL: model.event?.coverURL,
+                latestPhotoData: model.latestCaptureData,
                 onOpenGallery: model.galleryAvailable ? {
                     showsCameraGallery = true
                 } : nil
@@ -100,13 +102,24 @@ struct GuestLandingView: View {
     private var hoursLeft: Int { max(Int(event.revealDate.timeIntervalSince(now) / 3_600), 0) }
 
     var body: some View {
-        GeometryReader { proxy in
+        if model.remainingShots == 0 {
+            FilmFinishedView(
+                event: event,
+                galleryAvailable: model.galleryAvailable,
+                isFinishingUpload: model.isUploading || model.pendingUploadCount > 0,
+                uploadNeedsRetry: model.uploadError != nil && model.pendingUploadCount > 0,
+                onViewGallery: { model.showsGallery = true },
+                onRetryUpload: { Task { await model.retryPendingUploads() } },
+                onClose: onClose
+            )
+        } else {
+            GeometryReader { proxy in
             let fullWidth = proxy.size.width + proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing
             let fullHeight = proxy.size.height + proxy.safeAreaInsets.top + proxy.safeAreaInsets.bottom
             let contentWidth = min(max(proxy.size.width - 64, 0), 560)
 
             ZStack(alignment: .bottom) {
-                EventBackdropImage()
+                EventBackdropImage(url: event.coverURL)
                     .frame(width: fullWidth, height: fullHeight)
                     .clipped()
                     .offset(
@@ -235,13 +248,14 @@ struct GuestLandingView: View {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.88)) { heroVisible = true }
         }
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { now = $0 }
-        .alert("Couldn’t upload", isPresented: Binding(
-            get: { model.uploadError != nil },
-            set: { if !$0 { model.uploadError = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(model.uploadError ?? "Please try again.")
+            .alert("Couldn’t upload", isPresented: Binding(
+                get: { model.uploadError != nil },
+                set: { if !$0 { model.uploadError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(model.uploadError ?? "Please try again.")
+            }
         }
     }
 
@@ -252,6 +266,101 @@ struct GuestLandingView: View {
         }
         guard model.canUpload else { return }
         model.showsCamera = true
+    }
+}
+
+private struct FilmFinishedView: View {
+    let event: EventRecord
+    let galleryAvailable: Bool
+    let isFinishingUpload: Bool
+    let uploadNeedsRetry: Bool
+    let onViewGallery: () -> Void
+    let onRetryUpload: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                EventBackdropImage(url: event.coverURL)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+
+                LinearGradient(
+                    colors: [.black.opacity(0.28), .black.opacity(0.7), .black.opacity(0.98)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                VStack(spacing: 20) {
+                    Spacer()
+
+                    ZStack {
+                        Circle()
+                            .fill(Theme.memoryYellow.opacity(0.16))
+                            .frame(width: 96, height: 96)
+                        Circle()
+                            .stroke(Theme.memoryYellow.opacity(0.45), lineWidth: 1)
+                            .frame(width: 96, height: 96)
+                        Image(systemName: "film.stack.fill")
+                            .font(.system(size: 36, weight: .medium))
+                            .foregroundStyle(Theme.memoryYellow)
+                    }
+
+                    Text("Your roll is complete.")
+                        .font(.system(size: 43, weight: .regular, design: .serif))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+
+                    Text("Thank you for giving this night your point of view. You captured something beautiful.")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.88))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+
+                    Text(galleryAvailable
+                         ? "Your photos are safe, and the film is ready whenever you want to return to it."
+                         : "Your photos are safe. Let the film develop for a little while—when the album is revealed, these moments will be waiting for you.")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+
+                    if uploadNeedsRetry {
+                        Label("Your last photo is safe and waiting to upload.", systemImage: "icloud.and.arrow.up")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Theme.memoryYellow)
+                        Button("Retry the last photo", action: onRetryUpload)
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(minHeight: 44)
+                    } else if isFinishingUpload {
+                        Label("Finishing your last photo…", systemImage: "icloud.and.arrow.up")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Theme.memoryYellow)
+                    }
+
+                    PrimaryCapsuleButton(
+                        title: galleryAvailable ? "View the party film" : "Done for tonight",
+                        systemImage: galleryAvailable ? "photo.stack.fill" : "heart.fill",
+                        action: galleryAvailable ? onViewGallery : onClose
+                    )
+
+                    if galleryAvailable {
+                        Button("Close") { onClose() }
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.72))
+                            .frame(minHeight: 44)
+                    }
+
+                    Spacer().frame(height: max(proxy.safeAreaInsets.bottom, 18))
+                }
+                .frame(maxWidth: 520)
+                .padding(.horizontal, 34)
+            }
+        }
+        .ignoresSafeArea()
+        .preferredColorScheme(.dark)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -290,6 +399,7 @@ final class GuestEventModel {
     var showsCamera = false
     var showsGallery = false
     var reviewImageData: Data?
+    var latestCaptureData: Data?
     var photos: [PhotoRecord] = []
     var displayName: String
     var pendingUploadCount = 0
@@ -347,6 +457,7 @@ final class GuestEventModel {
 
     func upload(_ data: Data, message: String = "") async {
         guard canUpload else { return }
+        latestCaptureData = data
         isUploading = true
         uploadError = nil
         let pending: PendingUpload
@@ -385,6 +496,7 @@ final class GuestEventModel {
 
     func queueCameraCapture(_ data: Data) {
         guard remainingShots > 0, !displayName.isEmpty else { return }
+        latestCaptureData = data
         remainingShots -= 1
         uploadError = nil
 

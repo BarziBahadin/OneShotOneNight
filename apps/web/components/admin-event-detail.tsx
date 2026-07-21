@@ -3,6 +3,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Check, Copy, Download, Eye, EyeOff, MoreVertical, Play, Settings, Share2, Trash2, UserX } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
+import { Button } from "@/components/base/buttons/button";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
+import { Input } from "@/components/base/input/input";
+import { TextArea } from "@/components/base/textarea/textarea";
+import { FileUploadDropZone } from "@/components/application/file-upload/file-upload-base";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
   adminEvent,
   adminModeratePhoto,
@@ -10,6 +16,7 @@ import {
   adminResetEventTokens,
   adminSetEventStatus,
   adminUpdateEvent,
+  adminUploadEventCover,
   adminUpdateGuest,
   AdminEventDetail,
   EventRecord,
@@ -118,9 +125,9 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
 
       <nav className="mb-8 flex gap-1 overflow-x-auto border-b hairline">
         {([["event", "Event"], ["guests", `Guests (${detail.guests.length})`], ["settings", "Settings"]] as [Section, string][]).map(([value, label]) => (
-          <button key={value} onClick={() => setSection(value)} className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${section === value ? "border-amber text-ink" : "border-transparent text-moss hover:text-ink"}`}>
+          <Button key={value} color="tertiary" onClick={() => setSection(value)} className={`rounded-none border-b-2 px-5 py-3 ${section === value ? "border-amber text-ink" : "border-transparent text-moss"}`}>
             {label}
-          </button>
+          </Button>
         ))}
       </nav>
 
@@ -133,7 +140,7 @@ export function AdminEventDetailView({ eventID }: { eventID: string }) {
       {section === "guests" ? <Guests detail={detail} onChange={load} /> : null}
       {section === "settings" ? <SettingsPanel event={detail.event} onChange={load} /> : null}
       {status ? <p className="mt-4 surface px-4 py-3 text-moss">{status}</p> : null}
-      {toast ? <button type="button" onClick={() => setToast("")} className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-sm rounded-full bg-white px-4 py-3 text-sm font-bold text-black shadow-2xl">{toast}</button> : null}
+      {toast ? <Button color="secondary" onClick={() => setToast("")} className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-sm shadow-2xl">{toast}</Button> : null}
     </AdminShell>
   );
 }
@@ -224,7 +231,7 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, onToast, onChange 
   return (
     <div className="grid gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:items-start">
       <aside className="scene-glass relative overflow-hidden rounded-[2rem] p-6 text-white lg:sticky lg:top-5">
-        <img src="/pics/golden-event.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-24" />
+        <img src={detail.event.cover_url || "/pics/golden-event.jpg"} alt="" className="absolute inset-0 h-full w-full object-cover opacity-24" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/90" />
         <div className="relative">
           <p className="text-[0.68rem] font-bold uppercase text-white/52">Upload QR code</p>
@@ -235,23 +242,17 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, onToast, onChange 
         </div>
         {qr ? <img src={qr} alt="Guest QR code" width="360" height="360" decoding="async" className="relative mx-auto my-6 aspect-square w-full max-w-64 rounded-[1.5rem] bg-white p-3 shadow-xl" /> : null}
         <div className="relative grid grid-cols-2 gap-2">
-          <button className="rounded-full bg-white px-4 py-3 text-sm font-bold text-black" onClick={shareGuestLink}>
-            <Share2 className="mr-1 inline h-4 w-4" /> Share
-          </button>
-          <button className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white" onClick={() => void copyPanelLink(guestLink, "guest", "Upload link copied.")}>
-            <Copy className="mr-1 inline h-4 w-4" /> {copiedLink === "guest" ? "Copied" : "Copy link"}
-          </button>
-          <button className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white" onClick={saveQR}>
-            <Download className="mr-1 inline h-4 w-4" /> Save QR
-          </button>
-          <button className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-bold text-white" onClick={() => void copyPanelLink(galleryLink, "gallery", "Host gallery link copied.")}>
-            <Copy className="mr-1 inline h-4 w-4" /> {copiedLink === "gallery" ? "Copied" : "Copy gallery"}
-          </button>
+          <Button size="sm" iconLeading={Share2} onClick={shareGuestLink}>Share</Button>
+          <Button size="sm" color="secondary" iconLeading={Copy} onClick={() => void copyPanelLink(guestLink, "guest", "Upload link copied.")}>
+            {copiedLink === "guest" ? "Copied" : "Copy link"}
+          </Button>
+          <Button size="sm" color="secondary" iconLeading={Download} onClick={saveQR}>Save QR</Button>
+          <Button size="sm" color="secondary" iconLeading={Copy} onClick={() => void copyPanelLink(galleryLink, "gallery", "Host gallery link copied.")}>
+            {copiedLink === "gallery" ? "Copied" : "Copy gallery"}
+          </Button>
         </div>
         <div className="relative mt-3 grid gap-2">
-          <a className="btn-primary px-4 py-3" href={galleryLink} target="_blank" rel="noreferrer">
-            <Eye className="h-4 w-4" /> Open host gallery
-          </a>
+          <Button href={galleryLink} target="_blank" rel="noreferrer" iconLeading={Eye}>Open host gallery</Button>
         </div>
         <p className="relative mt-4 break-all text-[0.65rem] text-white/40">{guestLink}</p>
       </aside>
@@ -273,9 +274,7 @@ function EventWorkspace({ detail, guestLink, galleryLink, qr, onToast, onChange 
             <div className="flex flex-wrap items-center justify-end gap-3">
               <span className="text-sm text-moss">{detail.event.auto_approve_photos ? "Publishing automatically" : "Manual approval"}</span>
               {photos.length ? (
-                <button className="btn-ghost px-4 py-2" type="button" onClick={() => void downloadPhotos()}>
-                  <Download className="h-4 w-4" /> Download all
-                </button>
+                <Button color="secondary" size="sm" iconLeading={Download} onClick={() => void downloadPhotos()}>Download all</Button>
               ) : null}
             </div>
           </div>
@@ -344,9 +343,9 @@ function Guests({ detail, onChange }: { detail: AdminEventDetail; onChange: () =
             <h3 className="font-semibold">{guest.display_name?.trim() || `Guest ${index + 1}`}</h3>
             <p className="mt-1 text-sm text-moss">{guest.upload_count} uploads · last active {new Date(guest.last_seen_at).toLocaleString()}</p>
           </div>
-          <button onClick={() => toggle(guest.id, guest.status === "blocked")} className="btn-ghost px-3 py-2">
-            <UserX className="h-4 w-4" /> {guest.status === "blocked" ? "Unblock" : "Block"}
-          </button>
+          <Button color="secondary" size="sm" iconLeading={UserX} onClick={() => toggle(guest.id, guest.status === "blocked")}>
+            {guest.status === "blocked" ? "Unblock" : "Block"}
+          </Button>
         </article>
       ))}
       {mediaGuestNames.map((name) => (
@@ -364,6 +363,33 @@ function Guests({ detail, onChange }: { detail: AdminEventDetail; onChange: () =
 
 function SettingsPanel({ event, onChange }: { event: EventRecord; onChange: () => Promise<void> }) {
   const [saved, setSaved] = useState(false);
+  const [coverURL, setCoverURL] = useState(event.cover_url || "");
+  const [coverStatus, setCoverStatus] = useState("");
+  const [coverBusy, setCoverBusy] = useState(false);
+
+  useEffect(() => setCoverURL(event.cover_url || ""), [event.cover_url]);
+
+  async function uploadCover(files: FileList) {
+    const file = files[0];
+    if (!file) return;
+    const previewURL = URL.createObjectURL(file);
+    setCoverURL(previewURL);
+    setCoverBusy(true);
+    setCoverStatus("Uploading cover photo…");
+    try {
+      const out = await adminUploadEventCover(event.id, file);
+      setCoverURL(out.event.cover_url || "");
+      setCoverStatus("Cover photo updated");
+      await onChange();
+    } catch (error) {
+      setCoverURL(event.cover_url || "");
+      setCoverStatus(error instanceof Error ? error.message : "Unable to upload cover photo");
+    } finally {
+      URL.revokeObjectURL(previewURL);
+      setCoverBusy(false);
+    }
+  }
+
   async function submit(submitEvent: FormEvent<HTMLFormElement>) {
     submitEvent.preventDefault();
     const form = new FormData(submitEvent.currentTarget);
@@ -386,23 +412,49 @@ function SettingsPanel({ event, onChange }: { event: EventRecord; onChange: () =
   }
   return (
     <form onSubmit={submit} className="surface grid max-w-3xl gap-4 p-5">
-      <Field label="Event name" name="name" defaultValue={event.name} required />
-      <label className="grid gap-2 text-sm font-semibold">Description<textarea name="description" defaultValue={event.description} className="field min-h-24" /></label>
+      <section className="grid gap-3" aria-labelledby="event-cover-label">
+        <div>
+          <h3 id="event-cover-label" className="text-sm font-semibold text-primary">Event cover photo</h3>
+          <p className="mt-1 text-sm text-moss">Shown on the guest hero and as the album cover.</p>
+        </div>
+        <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-skywash ring-1 ring-primary">
+          <img
+            src={coverURL || "/pics/golden-event-640.webp"}
+            alt="Current event cover"
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+        </div>
+        <FileUploadDropZone
+          accept="image/jpeg,image/png,image/webp"
+          allowsMultiple={false}
+          maxSize={10 * 1024 * 1024}
+          isDisabled={coverBusy}
+          hint="JPG, PNG, or WebP up to 10 MB. Landscape photos work best."
+          onDropFiles={(files) => void uploadCover(files)}
+          onDropUnacceptedFiles={() => setCoverStatus("Choose a JPG, PNG, or WebP image")}
+          onSizeLimitExceed={() => setCoverStatus("The cover photo must be 10 MB or smaller")}
+        />
+        {coverStatus ? <p className="text-sm text-moss" role="status">{coverStatus}</p> : null}
+      </section>
+      <div className="my-1 border-t hairline" />
+      <Input label="Event name" name="name" defaultValue={event.name} isRequired size="md" />
+      <TextArea label="Description" name="description" defaultValue={event.description} textAreaClassName="min-h-24" />
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Starts" name="starts_at" type="datetime-local" defaultValue={toLocalInput(event.starts_at)} required />
-        <Field label="Ends" name="ends_at" type="datetime-local" defaultValue={toLocalInput(event.ends_at)} required />
-        <Field label="Gallery reveal" name="reveal_at" type="datetime-local" defaultValue={toLocalInput(event.reveal_at)} required />
+        <DateTimePicker label="Starts" name="starts_at" defaultValue={toLocalInput(event.starts_at)} required />
+        <DateTimePicker label="Ends" name="ends_at" defaultValue={toLocalInput(event.ends_at)} required />
+        <DateTimePicker label="Gallery reveal" name="reveal_at" defaultValue={toLocalInput(event.reveal_at)} required />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Guest limit" name="max_guests" type="number" min="1" defaultValue={event.max_guests} />
-        <Field label="Photos per guest" name="max_photos_per_guest" type="number" min="1" defaultValue={event.max_photos_per_guest} />
-        <Field label="Offline retry hours" name="offline_upload_grace_hours" type="number" min="1" max="168" defaultValue={event.offline_upload_grace_hours || 24} />
+        <Input label="Guest limit" name="max_guests" type="number" min="1" defaultValue={String(event.max_guests)} />
+        <Input label="Photos per guest" name="max_photos_per_guest" type="number" min="1" defaultValue={String(event.max_photos_per_guest)} />
+        <Input label="Offline retry hours" name="offline_upload_grace_hours" type="number" min="1" max="168" defaultValue={String(event.offline_upload_grace_hours || 24)} />
       </div>
-      <label className="flex items-center gap-3 text-sm font-semibold"><input name="allow_gallery_uploads" type="checkbox" defaultChecked={event.allow_gallery_uploads} /> Allow gallery uploads</label>
-      <label className="flex items-center gap-3 text-sm font-semibold"><input name="prefer_camera_capture" type="checkbox" defaultChecked={event.prefer_camera_capture} /> Prefer camera capture</label>
-      <label className="flex items-center gap-3 text-sm font-semibold"><input name="auto_approve_photos" type="checkbox" defaultChecked={event.auto_approve_photos} /> Publish uploads automatically</label>
+      <Checkbox name="allow_gallery_uploads" defaultSelected={event.allow_gallery_uploads} label="Allow gallery uploads" />
+      <Checkbox name="prefer_camera_capture" defaultSelected={event.prefer_camera_capture} label="Prefer camera capture" />
+      <Checkbox name="auto_approve_photos" defaultSelected={event.auto_approve_photos} label="Publish uploads automatically" />
       <div className="flex items-center gap-3">
-        <button className="btn-primary px-5 py-3"><Settings className="h-5 w-5" /> Save settings</button>
+        <Button type="submit" size="md" iconLeading={Settings}>Save settings</Button>
         {saved ? <span className="text-sm font-semibold text-amber">Saved</span> : null}
       </div>
     </form>
@@ -431,21 +483,16 @@ function hostGalleryURL(event: EventRecord, guestLink: string) {
   }
 }
 
-function Field(props: React.InputHTMLAttributes<HTMLInputElement> & { label: string; name: string }) {
-  const { label, ...input } = props;
-  return <label className="grid min-w-0 gap-2 text-sm font-semibold">{label}<input {...input} className="field min-w-0 w-full" /></label>;
-}
-
 function Metric({ label, value }: { label: string; value: string | number }) {
   return <div className="border-r hairline px-4 py-5 last:border-r-0"><p className="text-xs uppercase tracking-widest text-moss">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></div>;
 }
 
 function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
-  return <button aria-label={label} title={label} onClick={onClick} className="btn-ghost p-3">{children}</button>;
+  return <Button color="secondary" aria-label={label} onClick={onClick}>{children}</Button>;
 }
 
 function Action({ onClick, danger, children }: { onClick: () => void; danger?: boolean; children: React.ReactNode }) {
-  return <button onClick={onClick} className={`flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-semibold hover:bg-skywash ${danger ? "text-red-300" : ""}`}>{children}</button>;
+  return <Button color={danger ? "tertiary-destructive" : "tertiary"} onClick={onClick} className="w-full justify-start">{children}</Button>;
 }
 
 async function copyText(value: string) {

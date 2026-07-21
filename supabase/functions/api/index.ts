@@ -2,8 +2,9 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.9
 import JSZip from "npm:jszip@3.10.1";
 
 const bucket = "oneshotonenight";
-const eventColumns = "id,slug,name,description,host_message,mode,status,starts_at,ends_at,reveal_at,max_guests,max_photos_per_guest,allow_gallery_uploads,prefer_camera_capture,allow_immediate_gallery,auto_approve_photos,offline_upload_grace_hours,created_at,updated_at";
+const eventColumns = "id,slug,name,description,host_message,mode,status,starts_at,ends_at,reveal_at,max_guests,max_photos_per_guest,allow_gallery_uploads,prefer_camera_capture,allow_immediate_gallery,auto_approve_photos,offline_upload_grace_hours,cover_object_key,created_at,updated_at";
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "video/mp4", "video/quicktime", "video/webm"]);
+const coverTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const webOrigin = new URL(Deno.env.get("PUBLIC_WEB_URL") || "https://one-shot-one-night.vercel.app").origin;
 const cors = { "Access-Control-Allow-Origin": webOrigin, "Vary": "Origin", "Access-Control-Allow-Headers": "authorization, content-type, idempotency-key, x-guest-token, tus-resumable, upload-length, upload-offset, upload-metadata, upload-defer-length, upload-checksum", "Access-Control-Allow-Methods": "GET, HEAD, POST, PATCH, DELETE, OPTIONS", "Access-Control-Expose-Headers": "location, tus-resumable, upload-offset, upload-length, upload-expires" };
 
@@ -108,18 +109,48 @@ async function adminRoute(req: Request, url: URL, parts: string[], client: Supab
       update.updated_at = new Date().toISOString();
       const { data, error } = await client.from("events").update(update).eq("id", eventID).select(eventColumns).single();
       if (error) throw error;
-      return json({ event: data });
+      return json({ event: await eventForResponse(client, data) });
     }
     if (req.method === "DELETE") return setEventStatus(client, eventID, "deleted");
   }
   if (parts[2] === "open" && req.method === "POST") return setEventStatus(client, eventID, "open");
   if (parts[2] === "lock" && req.method === "POST") return setEventStatus(client, eventID, "locked");
+  if (parts[2] === "cover" && parts[3] === "presign" && req.method === "POST") {
+    const body = await bodyJSON(req);
+    const contentType = String(body.content_type || "").toLowerCase();
+    const sizeBytes = Number(body.size_bytes || 0);
+    if (!coverTypes.has(contentType) || !Number.isInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > 10 * 1024 * 1024) {
+      throw new HTTPError(400, "Choose a JPG, PNG, or WebP image up to 10 MB", "validation_error");
+    }
+    const objectKey = `events/${eventID}/cover/${id26()}.${extension(contentType)}`;
+    const { data, error } = await client.storage.from(bucket).createSignedUploadUrl(objectKey);
+    if (error || !data?.signedUrl) throw error || new HTTPError(502, "Storage did not issue an upload signature", "storage_error");
+    return json({ object_key: objectKey, upload_url: data.signedUrl, upload_headers: { "Content-Type": contentType } });
+  }
+  if (parts[2] === "cover" && !parts[3] && req.method === "POST") {
+    const body = await bodyJSON(req);
+    const objectKey = String(body.object_key || "");
+    const contentType = String(body.content_type || "").toLowerCase();
+    const sizeBytes = Number(body.size_bytes || 0);
+    if (!objectKey.startsWith(`events/${eventID}/cover/`) || !coverTypes.has(contentType)) {
+      throw new HTTPError(400, "Invalid cover photo", "validation_error");
+    }
+    await verifyStoredObject(client, objectKey, sizeBytes, contentType);
+    const { data: previous, error: previousError } = await client.from("events").select("cover_object_key").eq("id", eventID).single();
+    if (previousError) throw previousError;
+    const { data, error } = await client.from("events").update({ cover_object_key: objectKey, updated_at: new Date().toISOString() }).eq("id", eventID).select(eventColumns).single();
+    if (error) throw error;
+    if (previous?.cover_object_key && previous.cover_object_key !== objectKey) {
+      await client.storage.from(bucket).remove([previous.cover_object_key]);
+    }
+    return json({ event: await eventForResponse(client, data) });
+  }
   if (parts[2] === "tokens" && parts[3] === "reset" && req.method === "POST") {
     const cfg = await config(client); const version = `v2:${randomToken()}`; const token = await deriveAccessToken(eventID, version, cfg.token_pepper);
     const token_hash = await tokenHash(token, cfg.token_pepper);
     const { data, error } = await client.from("events").update({ access_token_version: version, access_token_hash: token_hash, guest_upload_token_hash: token_hash, updated_at: new Date().toISOString() }).eq("id", eventID).select(eventColumns).single();
     if (error) throw error;
-    return json({ event: data, access_token: token, guest_url: guestURL(data.slug, token) });
+    return json({ event: await eventForResponse(client, data), access_token: token, guest_url: guestURL(data.slug, token) });
   }
   if (parts[2] === "photos" && parts[3] === "download" && req.method === "GET") return photoArchive(client, eventID);
   if (parts[2] === "photos" && parts[3] && req.method === "PATCH") {
@@ -147,12 +178,12 @@ async function createEvent(req: Request, client: SupabaseClient) {
   const row = { id, slug, name, title: name, description, host_message: description, access_token_hash: token_hash, guest_upload_token_hash: token_hash, guest_upload_enabled: true, access_token_version: version, organizer_token_hash: "", guest_url: "", mode: body.mode || "delayed_reveal", status: "open", starts_at: starts, ends_at: ends, reveal_at: reveal, max_guests: body.max_guests || 250, max_photos_per_guest: body.max_photos_per_guest || 12, allow_gallery_uploads: body.allow_gallery_uploads ?? true, prefer_camera_capture: body.prefer_camera_capture ?? true, allow_immediate_gallery: body.allow_immediate_gallery ?? false, auto_approve_photos: body.auto_approve_photos ?? true, offline_upload_grace_hours: body.offline_upload_grace_hours ?? 24 };
   const { data, error } = await client.from("events").insert(row).select(eventColumns).single();
   if (error) throw adminDatabaseError(error);
-  return json({ event: data, access_token: token, guest_url: guestURL(slug, token) }, 201);
+  return json({ event: await eventForResponse(client, data), access_token: token, guest_url: guestURL(slug, token) }, 201);
 }
 
 async function setEventStatus(client: SupabaseClient, id: string, status: string) {
   const { data, error } = await client.from("events").update({ status, guest_upload_enabled: status === "open", updated_at: new Date().toISOString() }).eq("id", id).select(eventColumns).single();
-  if (error) throw error; return json({ event: data });
+  if (error) throw error; return json({ event: await eventForResponse(client, data) });
 }
 
 async function adminSession(req: Request, client: SupabaseClient, required: boolean) {
@@ -239,7 +270,7 @@ async function eventDetail(client: SupabaseClient, id: string) {
   delete event.access_token_version;
   const dashboardPhotos: any[] = [...((photos || []) as any[]), ...mapEventMedia((media || []) as any[])].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   return {
-    event,
+    event: await eventForResponse(client, event),
     guest_url: guestURL(event.slug, token),
     guests: guests || [],
     photos: await signedPhotos(client, await withGuestNames(client, dashboardPhotos)),
@@ -323,7 +354,7 @@ async function galleryRoute(req: Request, slug: string, client: SupabaseClient) 
   return json({ event, photos: await signedPhotos(client, await withGuestNames(client, pagePhotos)), next_cursor: galleryPhotos.length > limit && lastPhoto ? lastPhoto.created_at : null });
 }
 
-async function validEvent(client: SupabaseClient, slug: string, token: string) { const {data,error}=await client.from("events").select(`${eventColumns},access_token_hash`).eq("slug",slug).neq("status","deleted").single(); if(error||!data)throw new HTTPError(404,"Event not found","not_found"); const cfg=await config(client); if(!token||!safeEqual(data.access_token_hash,await tokenHash(token,cfg.token_pepper)))throw new HTTPError(401,"Unauthorized","unauthorized"); delete data.access_token_hash; return data; }
+async function validEvent(client: SupabaseClient, slug: string, token: string) { const {data,error}=await client.from("events").select(`${eventColumns},access_token_hash`).eq("slug",slug).neq("status","deleted").single(); if(error||!data)throw new HTTPError(404,"Event not found","not_found"); const cfg=await config(client); if(!token||!safeEqual(data.access_token_hash,await tokenHash(token,cfg.token_pepper)))throw new HTTPError(401,"Unauthorized","unauthorized"); delete data.access_token_hash; return eventForResponse(client,data); }
 async function findOrCreateGuest(client: SupabaseClient,event:any,req:Request,name:string,create:boolean){const raw=req.headers.get("x-guest-token")||bearer(req);if(!raw)throw new HTTPError(401,"Guest token required","unauthorized");const cfg=await config(client),hash=await tokenHash(raw,cfg.token_pepper);const {data,error}=await client.rpc("find_or_create_guest_atomic",{p_event_id:event.id,p_device_token_hash:hash,p_display_name:name,p_create:create});if(error){if(error.code==="P0001")throw new HTTPError(409,"Guest limit reached","guest_limit");if(error.code==="22023")throw new HTTPError(400,"Guest name is required","guest_name_required");throw error;}return data?.[0]||null;}
 async function verifyStoredObject(client:SupabaseClient,objectKey:string,expectedSize:number,expectedType:string){const separator=objectKey.lastIndexOf("/");const folder=separator>=0?objectKey.slice(0,separator):"";const fileName=separator>=0?objectKey.slice(separator+1):objectKey;const {data,error}=await client.storage.from(bucket).list(folder,{limit:2,search:fileName});if(error)throw error;const object=(data||[]).find(item=>item.name===fileName);if(!object)throw new HTTPError(400,"Uploaded file was not found in storage","upload_missing");const metadata=(object.metadata||{}) as Record<string,unknown>;const actualSize=Number(metadata.size??0);const actualType=String(metadata.mimetype??metadata.contentType??"").toLowerCase();if(actualSize!==Number(expectedSize))throw new HTTPError(400,"Uploaded file size does not match the upload request","upload_size_mismatch");if(actualType&&actualType!==expectedType.toLowerCase())throw new HTTPError(400,"Uploaded file type does not match the upload request","upload_type_mismatch");}
 function photoColumns(){return "id,event_id,guest_id,object_key,content_type,size_bytes,message,status,is_developed,width_px,height_px,created_at,updated_at";}
@@ -331,6 +362,7 @@ function mediaColumns(){return "id,event_id,guest_upload_session_id,guest_name,f
 function mapEventMedia(media:any[]){return media.map((m)=>({id:m.id,event_id:m.event_id,guest_id:m.guest_upload_session_id,guest_name:m.guest_name,object_key:m.storage_path,content_type:m.file_type,size_bytes:m.file_size,message:`Uploaded by ${m.guest_name}`,status:m.approval_status === "approved" ? "approved" : m.approval_status === "pending" ? "pending" : "hidden",is_developed:true,created_at:m.created_at,updated_at:m.created_at,media_type:m.media_type,file_name:m.file_name}));}
 async function withGuestNames(client:SupabaseClient,photos:any[]){const ids=[...new Set(photos.filter(p=>!p.guest_name&&p.guest_id).map(p=>p.guest_id))];if(!ids.length)return photos;const {data,error}=await client.from("guests").select("id,display_name").in("id",ids);if(error)throw error;const names=new Map((data||[]).map(g=>[g.id,g.display_name]));return photos.map(p=>p.guest_name? p : {...p,guest_name:names.get(p.guest_id)||""});}
 async function signedPhotos(client:SupabaseClient,photos:any[]){return Promise.all(photos.map(async p=>{const original=await client.storage.from(bucket).createSignedUrl(p.object_key,3600);if(original.error)throw original.error;let thumbnail=original,preview=original;if(canTransformImage(p.content_type)){const [thumb,large]=await Promise.all([client.storage.from(bucket).createSignedUrl(p.object_key,2592000,{transform:{width:320,quality:45,resize:"contain"}}),client.storage.from(bucket).createSignedUrl(p.object_key,3600,{transform:{width:1600,quality:82,resize:"contain"}})]);if(!thumb.error)thumbnail=thumb;if(!large.error)preview=large;}return{...p,public_url:original.data?.signedUrl,thumbnail_url:thumbnail.data?.signedUrl,preview_url:preview.data?.signedUrl};}));}
+async function eventForResponse(client:SupabaseClient,event:any){const out={...event};const key=String(out.cover_object_key||"");delete out.cover_object_key;if(!key)return{...out,cover_url:null};let signed=await client.storage.from(bucket).createSignedUrl(key,2592000,{transform:{width:1800,quality:85,resize:"contain"}});if(signed.error)signed=await client.storage.from(bucket).createSignedUrl(key,2592000);return{...out,cover_url:signed.data?.signedUrl||null};}
 function canTransformImage(type:string){return ["image/jpeg","image/png","image/webp"].includes(type);}
 async function photoArchive(client:SupabaseClient,eventID:string){const [{data:photos,error:photoError},{data:media,error:mediaError}]=await Promise.all([client.from("photos").select("id,object_key,content_type").eq("event_id",eventID).neq("status","deleted").limit(1001),client.from("event_media").select("id,storage_path,file_type,file_name").eq("event_id",eventID).eq("upload_status","uploaded").neq("approval_status","hidden").limit(1001)]);if(photoError||mediaError)throw photoError||mediaError;const entries=[...(photos||[]).map(p=>({id:p.id,key:p.object_key,type:p.content_type,name:`${p.id}.${extension(p.content_type)}`})),...(media||[]).map(m=>({id:m.id,key:m.storage_path,type:m.file_type,name:m.file_name||`${m.id}.${extension(m.file_type)}`}))];if(entries.length>1000)throw new HTTPError(413,"This event is too large for an on-demand archive","archive_too_large");const zip=new JSZip();for(const entry of entries){const file=await client.storage.from(bucket).download(entry.key);if(file.error||!file.data)throw new HTTPError(502,`Could not download ${entry.id} for the archive`,"archive_download_failed");zip.file(`${entry.id}-${entry.name}`,await file.data.arrayBuffer());}const bytes=await zip.generateAsync({type:"uint8array"});return new Response(bytes.buffer as ArrayBuffer,{headers:{...cors,"Content-Type":"application/zip","Content-Disposition":'attachment; filename="event-photos.zip"',"Cache-Control":"no-store"}});}
 

@@ -54,9 +54,29 @@ struct NightframeSplashView: View {
 }
 
 struct EventBackdropImage: View {
+    var url: URL? = nil
+
+    @ViewBuilder
     var body: some View {
-        if let url = Bundle.main.url(forResource: "golden-event", withExtension: "jpg"),
-           let image = UIImage(contentsOfFile: url.path) {
+        if let url {
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    bundledBackdrop
+                }
+            }
+        } else {
+            bundledBackdrop
+        }
+    }
+
+    @ViewBuilder
+    private var bundledBackdrop: some View {
+        if let bundledURL = Bundle.main.url(forResource: "event-background", withExtension: "jpg"),
+           let image = UIImage(contentsOfFile: bundledURL.path) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()

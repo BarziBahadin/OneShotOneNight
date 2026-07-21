@@ -12,6 +12,8 @@ struct PartyCameraView: View {
     let invitationURL: URL?
     let isUploading: Bool
     let uploadWarning: String?
+    let coverURL: URL?
+    let latestPhotoData: Data?
     let previewMode: Bool
     var onOpenGallery: (() -> Void)?
     let onCapture: (Data) -> Void
@@ -32,6 +34,8 @@ struct PartyCameraView: View {
         invitationURL: URL? = nil,
         isUploading: Bool = false,
         uploadWarning: String? = nil,
+        coverURL: URL? = nil,
+        latestPhotoData: Data? = nil,
         previewMode: Bool = false,
         onOpenGallery: (() -> Void)? = nil,
         onCapture: @escaping (Data) -> Void
@@ -43,6 +47,8 @@ struct PartyCameraView: View {
         self.invitationURL = invitationURL
         self.isUploading = isUploading
         self.uploadWarning = uploadWarning
+        self.coverURL = coverURL
+        self.latestPhotoData = latestPhotoData
         self.previewMode = previewMode
         self.onOpenGallery = onOpenGallery
         self.onCapture = onCapture
@@ -107,6 +113,11 @@ struct PartyCameraView: View {
             guard localRemainingShots > 0 else { return }
             localRemainingShots -= 1
             onCapture(data)
+            if localRemainingShots == 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+                    dismiss()
+                }
+            }
         }
         .onChange(of: remainingShots) { _, updatedValue in
             localRemainingShots = min(localRemainingShots, updatedValue)
@@ -209,8 +220,10 @@ struct PartyCameraView: View {
                     Group {
                         if let image = camera.lastCapturedPhoto {
                             Image(uiImage: image).resizable().scaledToFill()
+                        } else if let latestPhotoData, let image = UIImage(data: latestPhotoData) {
+                            Image(uiImage: image).resizable().scaledToFill()
                         } else {
-                            EventBackdropImage()
+                            EventBackdropImage(url: coverURL)
                         }
                     }
                     .frame(width: 62, height: 62)

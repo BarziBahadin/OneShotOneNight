@@ -2,7 +2,6 @@ const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
 const defaultSupabaseApiBase = "https://huakafctiajezinrzfle.supabase.co/functions/v1/api";
 const publicWebBase = import.meta.env.VITE_PUBLIC_WEB_URL || "https://one-shot-one-night.vercel.app";
 const adminTokenKey = "oneshot_admin_token";
-const guestTokenKey = "oneshot_guest_token";
 const guestAccessTokenPrefix = "oneshot_guest_access:";
 
 export function apiBaseURL() {
@@ -20,7 +19,7 @@ export function functionsBaseURL() {
 
 export function guestURL(slug: string, accessToken: string) {
   const base = publicWebBaseURL();
-  return `${base}/guest-upload/${slug}?token=${encodeURIComponent(accessToken)}`;
+  return `${base}/gallery/${slug}?token=${encodeURIComponent(accessToken)}`;
 }
 
 export function rememberGuestAccessToken(slug: string, token: string) {
@@ -65,6 +64,7 @@ export type EventRecord = {
   allow_immediate_gallery: boolean;
   auto_approve_photos: boolean;
   offline_upload_grace_hours: number;
+  cover_url?: string | null;
 };
 
 export type GuestRecord = {
@@ -158,9 +158,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const token = localStorage.getItem(adminTokenKey);
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
-  if (path.startsWith("/api/v1/guest/")) {
-    headers.set("X-Guest-Token", guestDeviceToken());
-  }
   try {
     res = await fetch(`${apiBaseURL()}${path}`, {
       ...init,
@@ -179,15 +176,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw apiError;
   }
   return (await res.json()) as T;
-}
-
-function guestDeviceToken() {
-  let token = localStorage.getItem(guestTokenKey);
-  if (!token) {
-    token = randomID();
-    localStorage.setItem(guestTokenKey, token);
-  }
-  return token;
 }
 
 export async function adminLogin(password: string) {
@@ -262,6 +250,29 @@ export function adminUpdateEvent(eventID: string, payload: unknown) {
   });
 }
 
+export async function adminUploadEventCover(eventID: string, file: File) {
+  const presign = await request<{
+    object_key: string;
+    upload_url: string;
+    upload_headers: Record<string, string>;
+  }>(`/api/v1/admin/events/${eventID}/cover/presign`, {
+    method: "POST",
+    body: JSON.stringify({ content_type: file.type, size_bytes: file.size })
+  });
+
+  const upload = await fetch(presign.upload_url, {
+    method: "PUT",
+    headers: presign.upload_headers,
+    body: file
+  });
+  if (!upload.ok) throw new APIError("Cover photo upload failed", upload.status, "cover_upload_failed");
+
+  return request<{ event: EventRecord }>(`/api/v1/admin/events/${eventID}/cover`, {
+    method: "POST",
+    body: JSON.stringify({ object_key: presign.object_key, content_type: file.type, size_bytes: file.size })
+  });
+}
+
 export function adminResetEventTokens(eventID: string) {
   return request<{ event: EventRecord; guest_url: string; access_token: string }>(`/api/v1/admin/events/${eventID}/tokens/reset`, {
     method: "POST"
@@ -288,199 +299,6 @@ export function adminUpdateGuest(eventID: string, guestID: string, status: Guest
     method: "PATCH",
     body: JSON.stringify({ status })
   });
-}
-
-export function joinGuest(slug: string, accessToken: string, displayName: string) {
-  return request<{ event: EventRecord; guest_name: string; remaining_shots: number; gallery_available: boolean }>(`/api/v1/guest/${slug}/join`, {
-    method: "POST",
-    body: JSON.stringify({ access_token: accessToken, display_name: displayName })
-  });
-}
-
-export async function uploadGuestPhoto(slug: string, accessToken: string, file: File, message: string, displayName = "") {
-  const prepared = await prepareGuestPhoto(slug, accessToken, file, displayName);
-  await putGuestPhoto(prepared, file, slug, accessToken);
-  return completeGuestPhoto(slug, accessToken, prepared, message, displayName);
-}
-
-type PreparedGuestPhoto = {
-  photo_id: string;
-  upload_url: string;
-  upload_headers: Record<string, string>;
-  resumable_url?: string;
-  upload_signature?: string;
-  object_key: string;
-  upload_token: string;
-  dimensions: { width: number; height: number } | null;
-};
-
-async function prepareGuestPhoto(slug: string, accessToken: string, file: File, displayName: string): Promise<PreparedGuestPhoto> {
-  const contentType = file.type || contentTypeFromFileName(file.name);
-  const dimensions = await imageDimensions(file);
-  const presign = await request<{ photo_id: string; object_key: string; upload_url: string; upload_headers: Record<string, string>; resumable_url?: string; upload_signature?: string; upload_token: string; remaining_shots: number }>(
-    `/api/v1/guest/${slug}/uploads/presign`,
-    {
-      method: "POST",
-      headers: { "Idempotency-Key": randomID() },
-      body: JSON.stringify({
-        access_token: accessToken,
-        file_name: file.name,
-        content_type: contentType,
-        size_bytes: file.size,
-        width_px: dimensions?.width,
-        height_px: dimensions?.height,
-        display_name: displayName.trim()
-      })
-    }
-  );
-
-  return { ...presign, dimensions };
-}
-
-async function putGuestPhoto(prepared: PreparedGuestPhoto, file: File, slug: string, accessToken: string, onProgress?: (loaded: number) => void) {
-  const tus = await import("tus-js-client");
-  const directUpload = Boolean(prepared.resumable_url && prepared.upload_signature);
-  await new Promise<void>((resolve, reject) => {
-    const upload = new tus.Upload(file, {
-      endpoint: directUpload ? prepared.resumable_url! : `${apiBaseURL()}/api/v1/guest/${encodeURIComponent(slug)}/uploads/resumable/${prepared.photo_id}`,
-      headers: directUpload
-        ? { "x-signature": prepared.upload_signature! }
-        : { Authorization: `Bearer ${accessToken}`, "X-Guest-Token": guestDeviceToken() },
-      chunkSize: 6 * 1024 * 1024,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      uploadDataDuringCreation: true,
-      removeFingerprintOnSuccess: true,
-      metadata: {
-        filename: file.name,
-        filetype: file.type || "application/octet-stream",
-        ...(directUpload ? {
-          bucketName: "oneshotonenight",
-          objectName: prepared.object_key,
-          contentType: file.type || contentTypeFromFileName(file.name),
-          cacheControl: "3600"
-        } : {})
-      },
-      onProgress: (bytesUploaded) => onProgress?.(bytesUploaded),
-      onError: (error) => reject(new APIError(error.message || "Upload failed", 0, "upload_failed")),
-      onSuccess: () => {
-        onProgress?.(file.size);
-        resolve();
-      }
-    });
-    void upload.findPreviousUploads().then((previousUploads) => {
-      if (previousUploads.length) upload.resumeFromPreviousUpload(previousUploads[0]);
-      upload.start();
-    }).catch(reject);
-  });
-}
-
-function completeGuestPhoto(slug: string, accessToken: string, prepared: PreparedGuestPhoto, message: string, displayName: string) {
-  return request<{ photo: PhotoRecord; remaining_shots: number }>(`/api/v1/guest/${slug}/photos`, {
-    method: "POST",
-    body: JSON.stringify({
-      access_token: accessToken,
-      photo_id: prepared.photo_id,
-      upload_token: prepared.upload_token,
-      width_px: prepared.dimensions?.width,
-      height_px: prepared.dimensions?.height,
-      display_name: displayName.trim(),
-      message
-    })
-  });
-}
-
-export async function uploadGuestPhotos(
-  slug: string,
-  accessToken: string,
-  files: File[],
-  displayName: string,
-  onResult: (file: File, result: { ok: boolean; message: string; remaining_shots?: number }) => void,
-  onProgress?: (progress: { file: File; loaded: number; total: number; percent: number }) => void
-) {
-  const prepared: Array<{ file: File; upload: PreparedGuestPhoto }> = [];
-  for (const file of files) {
-    try {
-      prepared.push({ file, upload: await prepareGuestPhoto(slug, accessToken, file, displayName) });
-    } catch (error) {
-      onResult(file, { ok: false, message: error instanceof Error ? error.message : "Upload failed" });
-    }
-  }
-
-  const loadedByFile = new Map<File, number>();
-  const totalBytes = prepared.reduce((total, item) => total + item.file.size, 0);
-  const workers = Array.from({ length: Math.min(3, prepared.length) }, async (_, workerIndex) => {
-    for (let index = workerIndex; index < prepared.length; index += 3) {
-      const item = prepared[index];
-      try {
-        await putGuestPhoto(item.upload, item.file, slug, accessToken, (loaded) => {
-          loadedByFile.set(item.file, loaded);
-          const totalLoaded = [...loadedByFile.values()].reduce((total, value) => total + value, 0);
-          onProgress?.({ file: item.file, loaded: totalLoaded, total: totalBytes, percent: totalBytes ? Math.round((totalLoaded / totalBytes) * 100) : 0 });
-        });
-      } catch (error) {
-        onResult(item.file, { ok: false, message: error instanceof Error ? error.message : "Upload failed" });
-        prepared[index] = { ...item, upload: { ...item.upload, upload_token: "" } };
-      }
-    }
-  });
-  await Promise.all(workers);
-
-  let remainingShots: number | undefined;
-  for (const item of prepared) {
-    if (!item.upload.upload_token) continue;
-    try {
-      const result = await completeGuestPhoto(slug, accessToken, item.upload, "", displayName);
-      remainingShots = result.remaining_shots;
-      onResult(item.file, { ok: true, message: "Uploaded", remaining_shots: result.remaining_shots });
-    } catch (error) {
-      onResult(item.file, { ok: false, message: error instanceof Error ? error.message : "Upload failed" });
-    }
-  }
-  return { remaining_shots: remainingShots };
-}
-
-async function imageDimensions(file: File): Promise<{ width: number; height: number } | null> {
-  if (!file.type.startsWith("image/")) return null;
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new Image();
-    const loaded = new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () => reject(new Error("Unable to decode image dimensions"));
-    });
-    image.src = url;
-    await loaded;
-    return image.naturalWidth && image.naturalHeight ? { width: image.naturalWidth, height: image.naturalHeight } : null;
-  } catch {
-    return null;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function randomID() {
-  const webCrypto = globalThis.crypto;
-  if (webCrypto?.randomUUID) {
-    return webCrypto.randomUUID();
-  }
-  if (!webCrypto?.getRandomValues) {
-    throw new APIError("Secure browser crypto is required for uploads.", 400, "crypto_unavailable");
-  }
-  const bytes = new Uint8Array(16);
-  webCrypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = [...bytes].map((value) => value.toString(16).padStart(2, "0"));
-  return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
-}
-
-function contentTypeFromFileName(name: string) {
-  const lower = name.toLowerCase();
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".heic")) return "image/heic";
-  if (lower.endsWith(".heif")) return "image/heif";
-  return "image/jpeg";
 }
 
 export function guestGallery(slug: string, accessToken: string, options?: { before?: string | null; limit?: number }) {

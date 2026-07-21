@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, Plus } from "lucide-react";
+import { Button } from "@/components/base/buttons/button";
 import { adminLogout } from "@/lib/api";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <main className="app-frame">
       <header className="mb-12 flex items-center justify-between gap-4 border-b hairline pb-5">
         <Link to="/admin" className="flex items-center gap-3">
-          <img src="/brand/nightframe-mark-gold.svg" alt="" width={40} height={40} decoding="async" className="h-10 w-10 object-contain" aria-hidden="true" />
+          <img src="/app-icon-192.png" alt="" width={40} height={40} decoding="async" className="h-10 w-10 rounded-xl object-cover" aria-hidden="true" />
           <div>
             <p className="text-sm font-bold tracking-tight">Nightframe</p>
             <p className="text-xs text-moss">Host studio</p>
@@ -33,9 +34,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <Link className="btn-primary px-3 py-2 text-sm" to="/admin/events/new">
             <Plus className="h-4 w-4" /> New event
           </Link>
-          <button onClick={logout} className="flex h-11 w-11 items-center justify-center rounded-full text-moss hover:bg-white/5 hover:text-ink" aria-label="Log out">
-            <LogOut className="h-4 w-4" />
-          </button>
+          <Button color="tertiary" iconLeading={LogOut} onClick={logout} aria-label="Log out" />
         </nav>
       </header>
       {children}

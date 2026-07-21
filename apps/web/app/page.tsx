@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Camera, Images, QrCode, ShieldCheck } from "lucide-react";
 
 const promises = [
-  ["No app to install", "Guests scan and start shooting"],
+  ["Made for iPhone", "Capture and upload from the phone app"],
   ["Private by design", "Only people with your link get in"],
   ["Your reveal, your time", "Keep the gallery hidden until you’re ready"]
 ];
@@ -15,8 +15,8 @@ const features = [
 
 const steps = [
   ["Set the frame", "Create your event, choose the upload window, and decide when the gallery should open."],
-  ["Pass it around", "Place the QR code on a table or invitation. Guests scan it—no download and no account."],
-  ["Relive the night", "When the time comes, Nightframe turns everyone’s photos into one private gallery."]
+  ["Capture on iPhone", "Guests use the Nightframe phone app to take and upload photos throughout the event."],
+  ["Relive it on the web", "When the time comes, everyone can return to one private, view-only gallery."]
 ];
 
 export default function HomePage() {
@@ -25,7 +25,7 @@ export default function HomePage() {
       <nav className="flex flex-wrap items-center justify-between gap-3 border-b hairline pb-5">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
           <img
-            src="/brand/nightframe-mark-gold.svg"
+            src="/app-icon-192.png"
             alt=""
             width={80}
             height={80}
@@ -46,7 +46,7 @@ export default function HomePage() {
           <p className="eyebrow mb-4">One night. Every perspective.</p>
           <h1 className="editorial-title max-w-3xl">The night, as everyone saw it.</h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-moss">
-            Give every guest the same private camera with one QR code. Collect the candid moments, keep them hidden, and reveal the whole story when you’re ready.
+            Capture every perspective in the Nightframe iPhone app, keep the photos hidden, and reveal the whole story later in one private web gallery.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link className="btn-primary px-5 py-3" to="/admin/events/new">
@@ -142,7 +142,7 @@ export default function HomePage() {
       </section>
 
       <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0f1b2d] p-7 shadow-[0_32px_100px_rgba(0,0,0,0.32)] sm:p-10 lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
-        <img src="/brand/nightframe_logo_white.svg" alt="" className="pointer-events-none absolute -right-16 -top-24 h-80 w-80 object-contain opacity-[0.06]" aria-hidden="true" />
+        <img src="/app-icon-192.png" alt="" className="pointer-events-none absolute -right-16 -top-24 h-80 w-80 rounded-[4rem] object-contain opacity-[0.06]" aria-hidden="true" />
         <div>
           <p className="eyebrow mb-3">Your night deserves every angle</p>
           <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl">Make a gallery nobody else could have photographed.</h2>

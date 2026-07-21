@@ -48,7 +48,7 @@ struct GalleryView: View {
             HStack(alignment: .top) {
                 IconSquareButton(systemImage: "chevron.left", accessibilityText: "Back") { dismiss() }
                 Spacer()
-                EventBackdropImage()
+                EventBackdropImage(url: model.event?.coverURL)
                     .frame(width: 92, height: 92)
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(.white.opacity(0.1)))
@@ -382,10 +382,10 @@ private extension PhotoRecord {
 @MainActor
 private enum PartyFilmPreviewData {
     static var photo: PhotoRecord {
-        let localURL = Bundle.main.url(forResource: "golden-event", withExtension: "jpg")?.absoluteString
+        let localURL = Bundle.main.url(forResource: "event-background", withExtension: "jpg")?.absoluteString
         return PhotoRecord(
             id: "preview-photo",
-            objectKey: "preview/golden-event.jpg",
+            objectKey: "preview/event-background.jpg",
             publicURL: localURL,
             thumbnailURL: localURL,
             previewURL: localURL,
